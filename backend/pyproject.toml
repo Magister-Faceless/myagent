@@ -1,0 +1,30 @@
+[project]
+name = "myagents"
+version = "0.0.1"
+description = "Research and analysis specialist agent with wide search access and analysis capabilities, todo list capabilities, and mock file system. Built on LangGraph."
+readme = "deepagents.README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "langgraph>=0.2.6",
+    "langchain>=0.2.14",
+    "langchain-openai>=0.2.14",
+    "python-dotenv>=1.0.1",
+    "typing-extensions>=4.8.0",
+    "requests>=2.32.3",
+    "langgraph-cli[inmem]",
+    "tavily-python"
+]
+
+
+[build-system]
+requires = ["setuptools>=73.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["deepagents"]
+[tool.setuptools.package-dir]
+"deepagents" = "src/deepagents"
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
