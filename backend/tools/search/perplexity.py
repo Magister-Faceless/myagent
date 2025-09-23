@@ -1,18 +1,8 @@
-import os
-import requests
 from typing import Literal, Optional, List, Dict, Any
 from langchain_core.tools import tool
-from datetime import datetime
 
-# Perplexity API configuration
-PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
-
-def get_perplexity_api_key():
-    """Get Perplexity API key from environment variables."""
-    api_key = os.environ.get("PERPLEXITY_API_KEY")
-    if not api_key:
-        raise ValueError("PERPLEXITY_API_KEY environment variable is required")
-    return api_key
+from .perplexity_client import get_perplexity_client
+from .perplexity_config import get_model_for_task, get_domain_filter_for_strategy
 
 @tool
 def perplexity_reasoning_search(
@@ -53,14 +43,8 @@ def perplexity_reasoning_search(
         temperature: Response creativity (0.0-1.0, default: 0.1 for analytical tasks)
     
     Returns:
-        Dictionary containing the analysis, reasoning, and sources
+        Standardized dictionary with analysis, citations, and metadata
     """
-    
-    api_key = get_perplexity_api_key()
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
     
     # Construct the reasoning prompt
     system_prompt = """You are an expert analyst and strategic thinker specializing in multi-step problem solving, analysis, planning, and decision making. 
@@ -81,111 +65,25 @@ Structure your response with:
 
 Be thorough, analytical, and precise in your reasoning."""
     
-    # Build the request payload
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": query}
-        ],
-        "temperature": temperature,
-        "enable_search_classifier": enable_search_classifier,
-        "disable_search": disable_search
-    }
+    # Use the centralized client
+    client = get_perplexity_client()
     
-    # Add optional parameters if provided
-    if max_tokens:
-        payload["max_tokens"] = max_tokens
-    
-    # Add search filters if provided
-    if search_domain_filter:
-        payload["search_domain_filter"] = search_domain_filter
-    
-    if search_after_date_filter:
-        payload["search_after_date_filter"] = search_after_date_filter
-    
-    if search_before_date_filter:
-        payload["search_before_date_filter"] = search_before_date_filter
-        
-    if last_updated_after_filter:
-        payload["last_updated_after_filter"] = last_updated_after_filter
-        
-    if last_updated_before_filter:
-        payload["last_updated_before_filter"] = last_updated_before_filter
-    
-    if search_recency_filter:
-        payload["search_recency_filter"] = search_recency_filter
-    
-    try:
-        response = requests.post(PERPLEXITY_API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Extract the analysis and citations
-        analysis = result["choices"][0]["message"]["content"]
-        
-        # Extract citations from the response (Perplexity includes them in the full response)
-        citations = []
-        if "citations" in result:
-            citations = result["citations"]
-        elif "choices" in result and len(result["choices"]) > 0:
-            # Sometimes citations are in the message metadata
-            message = result["choices"][0]["message"]
-            if "citations" in message:
-                citations = message["citations"]
-        
-        # Also extract any URLs mentioned in the content for reference
-        references = []
-        if citations:
-            references = citations
-        else:
-            # Fallback: extract URLs from the content if no explicit citations
-            import re
-            url_pattern = r'https?://[^\s<>"\[\]{}|\\^`]+'
-            urls = re.findall(url_pattern, analysis)
-            references = [{'url': url, 'title': 'Referenced Source'} for url in urls[:10]]  # Limit to 10
-        
-        return {
-            "status": "success",
-            "query": query,
-            "analysis": analysis,
-            "citations": citations,
-            "references": references,
-            "model_used": model,
-            "search_filters": {
-                "domain_filter": search_domain_filter,
-                "date_after": search_after_date_filter,
-                "date_before": search_before_date_filter,
-                "updated_after": last_updated_after_filter,
-                "updated_before": last_updated_before_filter,
-                "recency": search_recency_filter
-            },
-            "metadata": {
-                "timestamp": datetime.now().isoformat(),
-                "temperature": temperature,
-                "search_enabled": not disable_search
-            }
-        }
-        
-    except requests.exceptions.RequestException as e:
-        return {
-            "status": "error",
-            "error": f"API request failed: {str(e)}",
-            "query": query,
-            "analysis": "",
-            "citations": [],
-            "references": []
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": f"Unexpected error: {str(e)}",
-            "query": query,
-            "analysis": "",
-            "citations": [],
-            "references": []
-        }
+    return client.search(
+        query=query,
+        model=model,
+        system_prompt=system_prompt,
+        task_type="reasoning",
+        search_domain_filter=search_domain_filter,
+        search_after_date_filter=search_after_date_filter,
+        search_before_date_filter=search_before_date_filter,
+        last_updated_after_filter=last_updated_after_filter,
+        last_updated_before_filter=last_updated_before_filter,
+        search_recency_filter=search_recency_filter,
+        enable_search_classifier=enable_search_classifier,
+        disable_search=disable_search,
+        max_tokens=max_tokens,
+        temperature=temperature
+    )
 
 @tool
 def perplexity_focused_research(
@@ -206,16 +104,18 @@ def perplexity_focused_research(
         research_depth: "quick" for fast overview, "comprehensive" for detailed analysis
     
     Returns:
-        Dictionary containing structured research findings
+        Standardized dictionary containing structured research findings with citations
     """
     
     # Determine model and temperature based on research depth
     if research_depth == "comprehensive":
         model = "sonar-reasoning-pro"
         temperature = 0.05  # Very analytical
+        task_type = "deep_research"
     else:
         model = "sonar-pro"
         temperature = 0.1
+        task_type = "general_qa"
     
     # Build domain filter
     domain_filter = []
@@ -235,9 +135,25 @@ Please provide:
 
 Focus on factual, current information with proper citations."""
     
-    return perplexity_reasoning_search(
+    system_prompt = """You are a research specialist focused on comprehensive information gathering and analysis. 
+
+Your approach should be:
+1. Gather information from multiple authoritative sources
+2. Synthesize findings into clear, structured insights
+3. Highlight recent developments and trends
+4. Provide balanced analysis with supporting evidence
+5. Include proper citations and source references
+
+Structure your research report with clear sections and evidence-based conclusions."""
+    
+    # Use the centralized client
+    client = get_perplexity_client()
+    
+    return client.search(
         query=research_prompt,
         model=model,
+        system_prompt=system_prompt,
+        task_type=task_type,
         search_domain_filter=domain_filter if domain_filter else None,
         search_recency_filter=time_filter,
         temperature=temperature
