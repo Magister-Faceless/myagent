@@ -40,21 +40,21 @@ class ModelFactory:
     DEFAULT_MODELS = {
         # Primary chat models (with fallback hierarchy)
         "primary": ModelConfig(
-            name="alibaba/tongyi-deepresearch-30b-a3b",
+            name="x-ai/grok-3-mini",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
             api_key_env_var="OPENROUTER_API_KEY"
         ),
         "fallback-1": ModelConfig(
-            name="qwen/qwen-plus-2025-07-28",
+            name="x-ai/grok-4-fast:free",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
             api_key_env_var="OPENROUTER_API_KEY"
         ),
         "fallback-2": ModelConfig(
-            name="x-ai/grok-4-fast:free",
+            name="deepseek/deepseek-chat-v3.1",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
