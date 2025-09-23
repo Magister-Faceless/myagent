@@ -4,7 +4,16 @@ from tavily import TavilyClient
 from langchain_core.tools import tool
 
 # Initialize Tavily client
-tavily_client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
+tavily_client = None
+
+def get_tavily_client():
+    global tavily_client
+    if tavily_client is None:
+        api_key = os.environ.get("TAVILY_API_KEY")
+        if not api_key:
+            raise ValueError("TAVILY_API_KEY environment variable is required")
+        tavily_client = TavilyClient(api_key=api_key)
+    return tavily_client
 
 @tool
 def tavily_search(
@@ -54,7 +63,18 @@ def tavily_search(
             search_params["exclude_domains"] = exclude_domains
         
         # Perform the search
-        results = tavily_client.search(**search_params)
+        client = get_tavily_client()
+        results = client.search(**search_params)
+        
+        # Extract references from Tavily results
+        references = []
+        for result in results.get("results", []):
+            references.append({
+                "url": result.get("url", ""),
+                "title": result.get("title", "Untitled"),
+                "score": result.get("score", 0.0),
+                "published_date": result.get("published_date", None)
+            })
         
         return {
             "status": "success",
@@ -62,6 +82,7 @@ def tavily_search(
             "results": results.get("results", []),
             "answer": results.get("answer", ""),
             "images": results.get("images", []) if include_images else [],
+            "references": references,
             "search_metadata": {
                 "max_results": max_results,
                 "topic": topic,
@@ -77,7 +98,8 @@ def tavily_search(
             "query": query,
             "results": [],
             "answer": "",
-            "images": []
+            "images": [],
+            "references": []
         }
 
 @tool
@@ -97,7 +119,8 @@ def tavily_qna_search(
     """
     try:
         # Use Tavily's Q&A search for direct answers
-        answer = tavily_client.qna_search(
+        client = get_tavily_client()
+        answer = client.qna_search(
             query=query,
             search_depth=search_depth
         )
@@ -114,5 +137,6 @@ def tavily_qna_search(
             "status": "error",
             "error": str(e),
             "query": query,
-            "answer": ""
+            "answer": "",
+            "references": []
         }

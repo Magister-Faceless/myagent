@@ -12,19 +12,24 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "typing-extensions>=4.8.0",
     "requests>=2.32.3",
-    "langgraph-cli[inmem]",
-    "tavily-python"
+    "tavily-python>=0.0.5",
+    "pydantic>=2.0.0",
+    "fastapi>=0.104.1",
+    "uvicorn>=0.24.0",
+    "python-multipart>=0.0.6",
+    "aiohttp>=3.9.0",
+    "langgraph-cli[inmem]>=0.0.19"
 ]
-
 
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["deepagents"]
-[tool.setuptools.package-dir]
-"deepagents" = "src/deepagents"
-
-[tool.setuptools.package-data]
-"*" = ["py.typed"]
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.11.0",
+    "isort>=5.12.0",
+    "mypy>=1.7.0"
+]

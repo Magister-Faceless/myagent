@@ -5,8 +5,14 @@ from langchain_core.tools import tool
 from datetime import datetime
 
 # Perplexity API configuration
-PERPLEXITY_API_KEY = os.environ["PERPLEXITY_API_KEY"]
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
+
+def get_perplexity_api_key():
+    """Get Perplexity API key from environment variables."""
+    api_key = os.environ.get("PERPLEXITY_API_KEY")
+    if not api_key:
+        raise ValueError("PERPLEXITY_API_KEY environment variable is required")
+    return api_key
 
 @tool
 def perplexity_reasoning_search(
@@ -50,8 +56,9 @@ def perplexity_reasoning_search(
         Dictionary containing the analysis, reasoning, and sources
     """
     
+    api_key = get_perplexity_api_key()
     headers = {
-        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     
@@ -118,16 +125,33 @@ Be thorough, analytical, and precise in your reasoning."""
         # Extract the analysis and citations
         analysis = result["choices"][0]["message"]["content"]
         
-        # Parse citations if available (Perplexity includes them in the response)
+        # Extract citations from the response (Perplexity includes them in the full response)
         citations = []
         if "citations" in result:
             citations = result["citations"]
+        elif "choices" in result and len(result["choices"]) > 0:
+            # Sometimes citations are in the message metadata
+            message = result["choices"][0]["message"]
+            if "citations" in message:
+                citations = message["citations"]
+        
+        # Also extract any URLs mentioned in the content for reference
+        references = []
+        if citations:
+            references = citations
+        else:
+            # Fallback: extract URLs from the content if no explicit citations
+            import re
+            url_pattern = r'https?://[^\s<>"\[\]{}|\\^`]+'
+            urls = re.findall(url_pattern, analysis)
+            references = [{'url': url, 'title': 'Referenced Source'} for url in urls[:10]]  # Limit to 10
         
         return {
             "status": "success",
             "query": query,
             "analysis": analysis,
             "citations": citations,
+            "references": references,
             "model_used": model,
             "search_filters": {
                 "domain_filter": search_domain_filter,
@@ -150,7 +174,8 @@ Be thorough, analytical, and precise in your reasoning."""
             "error": f"API request failed: {str(e)}",
             "query": query,
             "analysis": "",
-            "citations": []
+            "citations": [],
+            "references": []
         }
     except Exception as e:
         return {
@@ -158,7 +183,8 @@ Be thorough, analytical, and precise in your reasoning."""
             "error": f"Unexpected error: {str(e)}",
             "query": query,
             "analysis": "",
-            "citations": []
+            "citations": [],
+            "references": []
         }
 
 @tool

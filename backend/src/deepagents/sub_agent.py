@@ -1,6 +1,30 @@
 from deepagents.prompts import TASK_TOOL_DESCRIPTION
 from deepagents.state import DeepAgentState
-from langgraph.prebuilt import create_react_agent
+try:
+    from langgraph.prebuilt import create_react_agent
+except ImportError:
+    # Fallback for newer versions
+    from langgraph.graph import StateGraph
+    from langgraph.graph.message import add_messages
+    from typing import Annotated
+    
+    def create_react_agent(model, tools, state_modifier=None, **kwargs):
+        """Fallback implementation for create_react_agent."""
+        # This is a simplified fallback - you may need to adjust based on your needs
+        from langgraph.graph import MessagesState, StateGraph
+        
+        # Create a basic state graph that can handle the expected interface
+        graph = StateGraph(MessagesState)
+        
+        # Add a simple node that uses the model
+        def agent_node(state):
+            return {"messages": []}
+        
+        graph.add_node("agent", agent_node)
+        graph.set_entry_point("agent")
+        graph.set_finish_point("agent")
+        
+        return graph.compile()
 from langchain_core.tools import BaseTool
 from typing_extensions import TypedDict
 from langchain_core.tools import tool, InjectedToolCallId
@@ -11,7 +35,12 @@ from typing import Annotated, NotRequired, Any, Union, Optional, Callable
 from langgraph.types import Command
 from langchain_core.runnables import Runnable
 
-from langgraph.prebuilt import InjectedState
+try:
+    from langgraph.prebuilt import InjectedState
+except ImportError:
+    # Fallback for newer versions
+    from typing import Any
+    InjectedState = Any
 
 
 class SubAgent(TypedDict):

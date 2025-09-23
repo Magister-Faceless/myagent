@@ -1,0 +1,874 @@
+### USER
+attached are the documentations for CORE API, vercel tools and vercel tool calling. using these guidelines, write the full code for a tool that allows my AI agent to make API calls to the core API to search the core api. the tool must be compliant to core api documentations and also the the vercel documentations
+
+### ASSISTANT
+Based on the provided documentation, here is the full code for a tool that allows your AI agent to make API calls to search the Core API.
+
+This tool is designed to be compliant with both the Vercel AI SDK and Core API guidelines. It uses the `tool` helper function for correct type inference, defines a clear input schema using Zod, and includes an `execute` function that performs the actual API call.
+
+```ts
+import { tool } from 'ai';
+import { z } from 'zod';
+
+/**
+ * Tool for making API calls to search the Core API.
+ * This tool allows the AI agent to query the Core API with specific search parameters.
+ */
+export const coreApiSearchTool = tool({
+  description: 'Make an API call to search the Core API for specific data or resources.',
+  inputSchema: z.object({
+    endpoint: z.string().describe('The specific Core API endpoint to call (e.g., "/v1/search", "/v2/users").'),
+    query: z.string().describe('The search query string to be used in the API call.'),
+    method: z.enum(['GET', 'POST']).default('GET').describe('The HTTP method to use for the API call. Defaults to GET.'),
+    headers: z.record(z.string()).optional().describe('Optional headers to include in the API request (e.g., for authentication).'),
+    body: z.record(z.any()).optional().describe('Optional JSON body to include in the request for POST methods.'),
+  }),
+  async execute({ endpoint, query, method, headers, body }) {
+    // Construct the full URL. In a real application, you would replace `CORE_API_BASE_URL`
+    // with your actual Core API base URL, loaded from an environment variable.
+    const baseUrl = process.env.CORE_API_BASE_URL || 'https://api.core.example.com';
+    const url = new URL(endpoint, baseUrl);
+    url.searchParams.append('q', query); // Append the search query as a URL parameter
+
+    const fetchOptions: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers, // Spread any additional headers provided by the AI
+      },
+    };
+
+    // Add body for POST requests
+    if (method === 'POST' && body) {
+      fetchOptions.body = JSON.stringify(body);
+    }
+
+    try {
+      const response = await fetch(url.toString(), fetchOptions);
+
+      if (!response.ok) {
+        throw new Error(`API call failed with status: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data,
+        message: `Successfully retrieved ${data.length || 'data'} result(s) from ${endpoint} for query "${query}".`,
+      };
+    } catch (error) {
+      // The AI SDK will handle this error and potentially send it back to the LLM as a 'tool-error'
+      // for multi-step repair or user notification.
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'An unknown error occurred during the API call.',
+        message: `Failed to search Core API at ${endpoint} for query "${query}".`,
+      };
+    }
+  },
+});
+```
+
+### Key Compliance Points
+
+1.  **Structure**: The tool follows the standard AI SDK structure with `description`, `inputSchema`, and `execute`.
+2.  **Type Safety**: Uses the `tool` helper function and Zod for robust type inference and validation, as recommended in both Vercel and Core API docs.
+3.  **Input Schema**: The `inputSchema` is clearly defined using Zod, specifying required and optional fields with descriptions to guide the LLM.
+4.  **Execute Function**: The `execute` function is asynchronous and returns a well-defined object. It includes error handling; errors are returned as part of the result object (not thrown) so the AI SDK can manage them as `tool-error` parts in multi-step scenarios, as per the "Handling Errors" section in the Core API documentation.
+5.  **Dynamic Configuration**: The tool is flexible, allowing the AI agent to specify the endpoint, HTTP method, headers (for auth), and body, making it reusable for various Core API search endpoints.
+6.  **Environment Variables**: Uses `process.env` for the base URL, following best practices for configuration.
+7.  **Abort Signal Ready**: Although not explicitly used in this snippet, the `execute` function signature allows for a second parameter (which includes `abortSignal`). The `fetch` call can easily be updated to `{ signal: abortSignal }` if needed, as shown in the "Tool Execution Options" section of the docs.
+
+### USER
+this is the documentation for vercel mcp. based on the documentations for core API, could we create an MCP server using vercel mcp guidelines to allow agents access to multiple possible functions with core API?
+
+### ASSISTANT
+Yes, absolutely. Based on the provided documentation, you can create an MCP (Model Context Protocol) server that acts as an adapter, exposing various functions of your Core API as tools to AI agents through the Vercel AI SDK.
+
+This is a powerful and recommended architecture because it decouples your Core API from the AI agent logic. The MCP server becomes the intermediary that understands both the Core API's endpoints and the MCP protocol, translating LLM tool calls into actual API requests.
+
+Here's how you can approach it:
+
+### 1. Create the MCP Server
+
+You need to build a server that implements the MCP protocol. This server will define the tools (which correspond to your Core API functions) and handle the communication with the AI agent.
+
+You can build this server using the official MCP TypeScript SDK. The server can be exposed via different transports like `stdio`, `SSE`, or `StreamableHTTP`.
+
+Below is a simplified example of what the MCP server might look like. This example uses `stdio` for simplicity, but you would likely use `StreamableHTTP` or `SSE` for a production web service.
+
+**Filename: `mcp-core-api-server.ts`**
+
+```ts
+import {
+  Server,
+  StdioServerTransport,
+  createJSONRPC10Server,
+} from '@modelcontextprotocol/sdk/server';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  ListToolsResultSchema,
+  CallToolResultSchema,
+} from '@modelcontextprotocol/sdk/types';
+import { z } from 'zod';
+
+// Define the tools your MCP server will expose.
+// These tools map directly to functions/endpoints in your Core API.
+const CORE_API_TOOLS = {
+  searchArticles: {
+    description: 'Search for articles in the Core API by keyword or topic.',
+    inputSchema: z.object({
+      query: z.string().describe('The search term or phrase.'),
+      limit: z.number().optional().default(10).describe('Maximum number of results to return.'),
+    }),
+  },
+  getUserProfile: {
+    description: 'Retrieve a user profile by their unique ID.',
+    inputSchema: z.object({
+      userId: z.string().describe('The unique identifier of the user.'),
+    }),
+  },
+  createDocument: {
+    description: 'Create a new document in the Core API.',
+    inputSchema: z.object({
+      title: z.string().describe('The title of the document.'),
+      content: z.string().describe('The main content of the document.'),
+      tags: z.array(z.string()).optional().describe('Tags associated with the document.'),
+    }),
+  },
+  // Add more tools here as needed for other Core API endpoints
+} as const;
+
+// Function to execute a tool call by making an actual HTTP request to your Core API
+async function executeCoreAPITool(toolName: string, args: any): Promise<any> {
+  const baseUrl = process.env.CORE_API_BASE_URL || 'https://api.your-core-api.com';
+  const apiKey = process.env.CORE_API_KEY; // If your API requires authentication
+
+  let url: string;
+  let method: string = 'GET';
+  let body: any = undefined;
+
+  // Map the MCP tool name to the actual Core API endpoint and method
+  switch (toolName) {
+    case 'searchArticles':
+      url = `${baseUrl}/v1/articles/search`;
+      url += `?q=${encodeURIComponent(args.query)}&limit=${args.limit || 10}`;
+      break;
+    case 'getUserProfile':
+      url = `${baseUrl}/v2/users/${encodeURIComponent(args.userId)}`;
+      break;
+    case 'createDocument':
+      url = `${baseUrl}/v1/documents`;
+      method = 'POST';
+      body = {
+        title: args.title,
+        content: args.content,
+        tags: args.tags,
+      };
+      break;
+    default:
+      throw new Error(`Unknown tool: ${toolName}`);
+  }
+
+  const fetchOptions: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+    },
+  };
+
+  if (body) {
+    fetchOptions.body = JSON.stringify(body);
+  }
+
+  try {
+    const response = await fetch(url, fetchOptions);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Core API Error (${response.status}): ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    // It's important to throw an error so the MCP client can handle it
+    // and the AI SDK can convert it into a 'tool-error' for the LLM.
+    throw error;
+  }
+}
+
+// Create the MCP Server instance
+const server = new Server(
+  {
+    name: 'core-api-mcp-server',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+// Handle the 'tools/list' request from the MCP client.
+// This tells the AI agent what tools are available.
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  const tools = Object.entries(CORE_API_TOOLS).map(([name, tool]) => ({
+    name,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+  }));
+
+  return ListToolsResultSchema.parse({
+    tools,
+  });
+});
+
+// Handle the 'tools/call' request, which is triggered when the LLM wants to use a tool.
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name: toolName, arguments: args } = request.params;
+
+  if (!CORE_API_TOOLS[toolName as keyof typeof CORE_API_TOOLS]) {
+    throw new Error(`Tool not found: ${toolName}`);
+  }
+
+  // Execute the tool by calling the Core API
+  const result = await executeCoreAPITool(toolName, args);
+
+  return CallToolResultSchema.parse({
+    content: result,
+  });
+});
+
+// Create a JSON-RPC server and connect it to stdio
+const jsonRpcServer = createJSONRPC10Server();
+const transport = new StdioServerTransport(process.stdin, process.stdout);
+jsonRpcServer.setTransport(transport);
+
+// Connect the MCP server to the JSON-RPC server
+server.connect(jsonRpcServer);
+
+console.log('MCP Server for Core API is running...');
+```
+
+### 2. Use the MCP Server in Your AI Agent (Client-Side)
+
+Once your MCP server is running, you can connect to it from your AI agent using the Vercel AI SDK's `experimental_createMCPClient`.
+
+**Filename: `ai-agent-with-mcp.ts`**
+
+```ts
+import { experimental_createMCPClient as createMCPClient } from 'ai';
+import { generateText, stepCountIs } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
+
+export async function askAgentWithCoreAPITools(userQuery: string) {
+  // Create an MCP client that connects to your MCP server
+  // Replace the URL with where your MCP server is hosted
+  const mcpTransport = new StreamableHTTPClientTransport(
+    new URL('http://localhost:4000/mcp') // Your MCP server endpoint
+  );
+
+  const mcpClient = await createMCPClient({
+    transport: mcpTransport,
+  });
+
+  try {
+    // Retrieve the tools from the MCP server
+    // You can optionally pass a `schemas` object here for type safety,
+    // but for simplicity, we let the client infer the schemas from the server.
+    const coreAPITools = await mcpClient.tools();
+
+    // Use the tools in a multi-step generation
+    const result = await generateText({
+      model: openai('gpt-4o'),
+      tools: coreAPITools,
+      stopWhen: stepCountIs(5), // Allow up to 5 steps for complex queries
+      system: 'You are a helpful assistant that can search for articles, retrieve user profiles, and create documents using the provided tools. Always use a tool when relevant to answer the user.',
+      prompt: userQuery,
+    });
+
+    return result.text;
+  } finally {
+    // Always close the MCP client to free up resources
+    await mcpClient.close();
+  }
+}
+
+// Example usage
+const answer = await askAgentWithCoreAPITools(
+  'Find me 5 articles about climate change and then create a summary document titled "Climate Change Overview".'
+);
+console.log(answer);
+```
+
+### Why This Architecture is Compliant and Powerful
+
+1.  **Separation of Concerns**: Your Core API remains unchanged and is not directly coupled to the AI SDK. The MCP server handles all interactions.
+2.  **Scalability**: You can expose dozens of Core API endpoints as tools without cluttering your AI agent code. The MCP server manages the complexity.
+3.  **Dynamic Discovery**: The AI agent dynamically discovers available tools at runtime by calling `mcpClient.tools()`. This means you can add or remove tools from the MCP server without redeploying your agent.
+4.  **Error Handling**: Errors from the Core API are caught in the MCP server and thrown. The AI SDK will automatically convert these into `tool-error` parts, allowing the LLM to attempt recovery in a multi-step scenario.
+5.  **Standards-Based**: You're using the emerging MCP standard, making your tools potentially reusable with other MCP-compatible clients in the future.
+6.  **Vercel AI SDK Compliant**: The client-side code uses `experimental_createMCPClient` and integrates seamlessly with `generateText` and `streamText`, including multi-step calls and error handling as per the documentation.
+
+This setup effectively turns your Core API into a toolbox that any AI agent, built with the Vercel AI SDK, can use intelligently.
+
+### USER
+based on the core api documentations attached, what functions can we create? list them down
+
+### ASSISTANT
+Based on the Core API documentation, we can create functions (tools) that allow an AI agent to interact with the four main entities: **Works**, **Outputs**, **Data Providers**, and **Journals**. Each function will map to a specific API endpoint and operation, such as searching, retrieving a single item, or fetching statistics.
+
+Here is a comprehensive list of functions we can create:
+
+---
+
+### **1. Functions for `Works` (Deduplicated Research Works)**
+
+*   **`searchWorks`**: Search for scholarly works using the Core API query language.
+    *   *Parameters*: `query` (string), `limit` (number, optional), `offset` (number, optional), `scroll` (boolean, optional).
+    *   *Endpoint*: `GET /v3/search/works`
+*   **`aggregateWorks`**: Get aggregated statistics (e.g., count by year, author) for works matching a search query.
+    *   *Parameters*: `query` (string), `aggregations` (array of field names like `["yearPublished", "authors"]`).
+    *   *Endpoint*: `POST /v3/search/works/aggregate`
+*   **`getWorkById`**: Retrieve a single work by its unique identifier.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/works/{identifier}`
+*   **`getWorkOutputs`**: Retrieve all outputs (source-specific versions) associated with a specific work.
+    *   *Parameters*: `identifier` (string), `limit` (number, optional), `offset` (number, optional).
+    *   *Endpoint*: `GET /v3/works/{identifier}/outputs`
+*   **`getWorkStats`**: Retrieve lifecycle statistics (dates) for a specific work.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/works/{identifier}/stats`
+*   **`downloadWorkFile`**: Download the binary file (e.g., PDF) associated with a work.
+    *   *Parameters*: `identifier` (string), `format` (string, e.g., "pdf").
+    *   *Endpoint*: `GET /v3/works/{identifier}/download`
+*   **`downloadWorkTEI`**: Download the parsed, structured TEI (Text Encoding Initiative) file for a work.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/works/tei/{identifier}`
+
+---
+
+### **2. Functions for `Outputs` (Raw, Source-Specific Records)**
+
+*   **`searchOutputs`**: Search for raw outputs from repositories and journals.
+    *   *Parameters*: `query` (string), `limit` (number, optional), `offset` (number, optional), `scroll` (boolean, optional).
+    *   *Endpoint*: `GET /v3/search/outputs`
+*   **`aggregateOutputs`**: Get aggregated statistics (e.g., count by document type) for outputs matching a search query.
+    *   *Parameters*: `query` (string), `aggregations` (array of field names like `["documentType", "language"]`).
+    *   *Endpoint*: `POST /v3/search/outputs/aggregate`
+*   **`getOutputById`**: Retrieve a single output by its unique CORE ID.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/outputs/{identifier}`
+*   **`getOutputStats`**: Retrieve statistical and date-related metadata for a specific output.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/outputs/{identifier}/stats`
+*   **`downloadOutputFile`**: Download the binary file (e.g., PDF) associated with an output.
+    *   *Parameters*: `identifier` (string), `format` (string, e.g., "pdf").
+    *   *Endpoint*: `GET /v3/outputs/{identifier}/download`
+*   **`getOutputHistory`**: Retrieve the historical OAI-PMH XML records for an output.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/outputs/{identifier}/history`
+*   **`getOutputRawXML`**: Retrieve the raw XML metadata record for an output.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/outputs/{identifier}/raw`
+
+---
+
+### **3. Functions for `Data Providers` (Sources like Repositories & Journals)**
+
+*   **`searchDataProviders`**: Search for data providers (e.g., by name, location, software).
+    *   *Parameters*: `query` (string), `limit` (number, optional), `offset` (number, optional).
+    *   *Endpoint*: `GET /v3/search/data-providers`
+*   **`aggregateDataProviders`**: Get aggregated statistics for data providers matching a search query.
+    *   *Parameters*: `query` (string), `aggregations` (array of field names, e.g., `["software"]`).
+    *   *Endpoint*: `POST /v3/search/data-providers/aggregate`
+*   **`getDataProviderById`**: Retrieve a single data provider by its ID or OpenDOAR ID.
+    *   *Parameters*: `identifier` (string, e.g., `"92"` or `"opendoar:1334"`).
+    *   *Endpoint*: `GET /v3/data-providers/{identifier}`
+*   **`getDataProviderStats`**: Retrieve aggregated statistics (e.g., count of metadata/fulltext) for a data provider.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/data-providers/{identifier}/stats`
+*   **`searchDataProviderOutputs`**: Search for outputs that were harvested from a specific data provider.
+    *   *Parameters*: `dataProviderId` (string), `query` (string, optional), `limit` (number, optional), `offset` (number, optional), `sort` (string, optional).
+    *   *Endpoint*: `GET /v3/data-providers/{identifier}/outputs`
+
+---
+
+### **4. Functions for `Journals`**
+
+*   **`searchJournals`**: Search for journals by title, subject, publisher, etc.
+    *   *Parameters*: `query` (string), `limit` (number, optional), `offset` (number, optional).
+    *   *Endpoint*: `GET /v3/search/journals`
+*   **`aggregateJournals`**: Get aggregated statistics (e.g., count by subject) for journals matching a search query.
+    *   *Parameters*: `query` (string), `aggregations` (array of field names, e.g., `["subjects"]`).
+    *   *Endpoint*: `POST /v3/search/journals/aggregate`
+*   **`getJournalById`**: Retrieve a single journal by its CORE ID or ISSN.
+    *   *Parameters*: `identifier` (string, e.g., `"123"` or `"issn:1234-5678"`).
+    *   *Endpoint*: `GET /v3/journals/{identifier}`
+*   **`getJournalStats`**: Retrieve aggregated statistics for a journal.
+    *   *Parameters*: `identifier` (string).
+    *   *Endpoint*: `GET /v3/journals/{identifier}/stats`
+
+---
+
+### **5. Miscellaneous / Utility Functions**
+
+*   **`discoverFullText`**: Find full-text links for a document based on its DOI, title, and year.
+    *   *Parameters*: `doi` (string), `title` (string), `year` (number).
+    *   *Endpoint*: `POST /v3/discover`
+*   **`getRecommendations`**: Get recommendations for related records based on text, an identifier, or metadata.
+    *   *Parameters*: `text` (string, optional), `identifier` (string, optional), `title` (string, optional), `abstract` (string, optional), `authors` (array of strings, optional), `result_type` (string, optional).
+    *   *Endpoint*: `POST /v3/recommend`
+*   **`findExperts`**: (Lab Feature) Find experts based on text or metadata.
+    *   *Parameters*: `text` (string, optional), `identifier` (string, optional), `title` (string, optional), `abstract` (string, optional), `authors` (array of strings, optional), `result_type` (string, optional).
+    *   *Endpoint*: `POST /v3/labs/expert-finder`
+
+---
+
+This list provides a robust foundation for building an AI agent that can comprehensively search, retrieve, and analyze scholarly data from the CORE database. Each function can be implemented as a tool with a clear `inputSchema` (using Zod) and an `execute` function that makes the corresponding HTTP call to the Core API.
+
+### USER
+based on the core API documentations, vercel mcp documentations, please create a core api mcp for vercel
+
+### ASSISTANT
+Based on the Core API and Vercel MCP documentation, here is a complete implementation for a **Core API MCP Server** that exposes the Core API's functionality as standardized MCP tools. This server can then be connected to any Vercel AI SDK agent using the `experimental_createMCPClient` function.
+
+This implementation uses the official `@modelcontextprotocol/sdk` and follows the MCP specification. It exposes a rich set of tools for searching, retrieving, and analyzing scholarly data.
+
+---
+
+### **Step 1: Initialize the Project and Install Dependencies**
+
+```bash
+npm init -y
+npm install @modelcontextprotocol/sdk zod
+npm install --save-dev typescript ts-node @types/node
+```
+
+Create a `tsconfig.json` for TypeScript compilation.
+
+---
+
+### **Step 2: Create the MCP Server (`core-api-mcp-server.ts`)**
+
+This server defines all the tools based on the Core API endpoints and handles tool execution by making HTTP calls to `api.core.ac.uk`.
+
+```ts
+// core-api-mcp-server.ts
+import {
+  Server,
+  createJSONRPC10Server,
+  StdioServerTransport,
+} from '@modelcontextprotocol/sdk/server';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  ListToolsResultSchema,
+  CallToolResultSchema,
+} from '@modelcontextprotocol/sdk/types';
+import { z } from 'zod';
+
+// Load API key from environment (optional, but recommended for higher rate limits)
+const CORE_API_KEY = process.env.CORE_API_KEY;
+const CORE_API_BASE_URL = 'https://api.core.ac.uk/v3';
+
+// Helper function to make authenticated requests to Core API
+async function coreApiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${CORE_API_BASE_URL}${endpoint}`;
+  const headers = new Headers(options.headers);
+
+  if (CORE_API_KEY) {
+    headers.set('Authorization', `Bearer ${CORE_API_KEY}`);
+  }
+  headers.set('Content-Type', 'application/json');
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`Core API Error ${response.status}: ${errorText}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+// Define the MCP Tools based on Core API endpoints
+// Each tool has a name, description, and a Zod input schema.
+const CORE_API_MCP_TOOLS = {
+  // --- WORKS ---
+  searchWorks: {
+    description: 'Search for scholarly works (deduplicated research papers) using the Core API query language.',
+    inputSchema: z.object({
+      q: z.string().describe('The search query using Core API query syntax (e.g., title:"AI" AND yearPublished>2020).'),
+      limit: z.number().optional().default(10).describe('Maximum number of results to return.'),
+      offset: z.number().optional().default(0).describe('Offset for pagination.'),
+      scroll: z.boolean().optional().describe('Enable scroll for large datasets (>10,000 results).'),
+    }),
+  },
+  getWorkById: {
+    description: 'Retrieve a single scholarly work by its unique Core ID.',
+    inputSchema: z.object({
+      identifier: z.string().describe('The unique Core ID of the work.'),
+    }),
+  },
+  getWorkOutputs: {
+    description: 'Retrieve all source-specific outputs (versions) associated with a specific work.',
+    inputSchema: z.object({
+      identifier: z.string().describe('The unique Core ID of the work.'),
+      limit: z.number().optional().default(10).describe('Maximum number of outputs to return.'),
+      offset: z.number().optional().default(0).describe('Offset for pagination.'),
+    }),
+  },
+  downloadWorkFile: {
+    description: 'Download the PDF file associated with a specific work.',
+    inputSchema: z.object({
+      identifier: z.string().describe('The unique Core ID of the work.'),
+    }),
+  },
+
+  // --- OUTPUTS ---
+  searchOutputs: {
+    description: 'Search for raw outputs (source-specific records) from repositories and journals.',
+    inputSchema: z.object({
+      q: z.string().describe('The search query using Core API query syntax.'),
+      limit: z.number().optional().default(10),
+      offset: z.number().optional().default(0),
+      scroll: z.boolean().optional(),
+    }),
+  },
+  getOutputById: {
+    description: 'Retrieve a single output by its unique Core ID.',
+    inputSchema: z.object({
+      identifier: z.string().describe('The unique Core ID of the output.'),
+    }),
+  },
+  downloadOutputFile: {
+    description: 'Download the PDF file associated with a specific output.',
+    inputSchema: z.object({
+      identifier: z.string().describe('The unique Core ID of the output.'),
+    }),
+  },
+
+  // --- DATA PROVIDERS ---
+  searchDataProviders: {
+    description: 'Search for data providers (repositories, journals) by name, location, or software.',
+    inputSchema: z.object({
+      q: z.string().describe('The search query (e.g., name:Glasgow OR location.countryCode:us).'),
+      limit: z.number().optional().default(10),
+      offset: z.number().optional().default(0),
+    }),
+  },
+  getDataProviderById: {
+    description: 'Retrieve a single data provider by its ID or OpenDOAR ID.',
+    inputSchema: z.object({
+      identifier: z.string().describe('The data provider ID (e.g., "92" or "opendoar:1334").'),
+    }),
+  },
+  searchDataProviderOutputs: {
+    description: 'Search for outputs harvested from a specific data provider.',
+    inputSchema: z.object({
+      dataProviderId: z.string().describe('The ID of the data provider.'),
+      q: z.string().optional().describe('Optional search query to filter outputs.'),
+      limit: z.number().optional().default(10),
+      offset: z.number().optional().default(0),
+      sort: z.enum(['relevance', 'recency']).optional().default('relevance'),
+    }),
+  },
+
+  // --- JOURNALS ---
+  searchJournals: {
+    description: 'Search for academic journals by title, subject, or publisher.',
+    inputSchema: z.object({
+      q: z.string().describe('The search query (e.g., title:"Nature" AND subjects:"Science").'),
+      limit: z.number().optional().default(10),
+      offset: z.number().optional().default(0),
+    }),
+  },
+  getJournalById: {
+    description: 'Retrieve a single journal by its Core ID or ISSN.',
+    inputSchema: z.object({
+      identifier: z.string().describe('The journal ID (e.g., "123" or "issn:1234-5678").'),
+    }),
+  },
+
+  // --- AGGREGATIONS ---
+  aggregateWorks: {
+    description: 'Get aggregated statistics (e.g., count by year, author) for works matching a search query.',
+    inputSchema: z.object({
+      q: z.string().describe('The search query.'),
+      aggregations: z.array(z.string()).describe('List of fields to aggregate by (e.g., ["yearPublished", "authors"]).'),
+    }),
+  },
+  aggregateOutputs: {
+    description: 'Get aggregated statistics for outputs matching a search query.',
+    inputSchema: z.object({
+      q: z.string().describe('The search query.'),
+      aggregations: z.array(z.string()).describe('List of fields to aggregate by (e.g., ["documentType", "language"]).'),
+    }),
+  },
+
+  // --- MISCELLANEOUS ---
+  discoverFullText: {
+    description: 'Find full-text links for a document based on its DOI, title, and year.',
+    inputSchema: z.object({
+      doi: z.string().describe('The DOI of the document.'),
+      title: z.string().describe('The title of the document.'),
+      year: z.number().describe('The publication year.'),
+    }),
+  },
+  getRecommendations: {
+    description: 'Get recommendations for related scholarly records based on text or an identifier.',
+    inputSchema: z.object({
+      text: z.string().optional().describe('The text to base recommendations on.'),
+      identifier: z.string().optional().describe('The Core ID of a record to base recommendations on.'),
+      limit: z.string().optional().default('10').describe('Number of recommendations to return.'),
+    }).refine(data => data.text || data.identifier, {
+      message: "Either 'text' or 'identifier' must be provided.",
+    }),
+  },
+} as const;
+
+// Function to execute a tool call by mapping it to the actual Core API endpoint
+async function executeCoreAPITool(toolName: keyof typeof CORE_API_MCP_TOOLS, args: any): Promise<any> {
+  try {
+    switch (toolName) {
+      // WORKS
+      case 'searchWorks':
+        return await coreApiRequest(`/search/works`, {
+          method: 'POST',
+          body: JSON.stringify(args),
+        });
+      case 'getWorkById':
+        return await coreApiRequest(`/works/${encodeURIComponent(args.identifier)}`);
+      case 'getWorkOutputs':
+        return await coreApiRequest(`/works/${encodeURIComponent(args.identifier)}/outputs?limit=${args.limit}&offset=${args.offset}`);
+      case 'downloadWorkFile':
+        // For file downloads, we return the URL so the client can handle it.
+        // Alternatively, you could return a base64 string, but that's heavy for MCP.
+        return { downloadUrl: `${CORE_API_BASE_URL}/works/${encodeURIComponent(args.identifier)}/download` };
+
+      // OUTPUTS
+      case 'searchOutputs':
+        return await coreApiRequest(`/search/outputs`, {
+          method: 'POST',
+          body: JSON.stringify(args),
+        });
+      case 'getOutputById':
+        return await coreApiRequest(`/outputs/${encodeURIComponent(args.identifier)}`);
+      case 'downloadOutputFile':
+        return { downloadUrl: `${CORE_API_BASE_URL}/outputs/${encodeURIComponent(args.identifier)}/download` };
+
+      // DATA PROVIDERS
+      case 'searchDataProviders':
+        return await coreApiRequest(`/search/data-providers`, {
+          method: 'POST',
+          body: JSON.stringify(args),
+        });
+      case 'getDataProviderById':
+        return await coreApiRequest(`/data-providers/${encodeURIComponent(args.identifier)}`);
+      case 'searchDataProviderOutputs':
+        const { dataProviderId, ...queryParams } = args;
+        const searchParams = new URLSearchParams(queryParams as Record<string, string>);
+        return await coreApiRequest(`/data-providers/${encodeURIComponent(dataProviderId)}/outputs?${searchParams.toString()}`);
+
+      // JOURNALS
+      case 'searchJournals':
+        return await coreApiRequest(`/search/journals`, {
+          method: 'POST',
+          body: JSON.stringify(args),
+        });
+      case 'getJournalById':
+        return await coreApiRequest(`/journals/${encodeURIComponent(args.identifier)}`);
+
+      // AGGREGATIONS
+      case 'aggregateWorks':
+        return await coreApiRequest(`/search/works/aggregate`, {
+          method: 'POST',
+          body: JSON.stringify(args),
+        });
+      case 'aggregateOutputs':
+        return await coreApiRequest(`/search/outputs/aggregate`, {
+          method: 'POST',
+          body: JSON.stringify(args),
+        });
+
+      // MISCELLANEOUS
+      case 'discoverFullText':
+        return await coreApiRequest(`/discover`, {
+          method: 'POST',
+          body: JSON.stringify(args),
+        });
+      case 'getRecommendations':
+        return await coreApiRequest(`/recommend`, {
+          method: 'POST',
+          body: JSON.stringify(args),
+        });
+
+      default:
+        throw new Error(`Unknown tool: ${toolName}`);
+    }
+  } catch (error) {
+    // It's crucial to throw the error so the MCP client can handle it
+    // and the Vercel AI SDK can convert it into a 'tool-error' for the LLM.
+    throw error;
+  }
+}
+
+// Create the MCP Server
+const server = new Server(
+  {
+    name: 'core-api-mcp-server',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+// Handle 'tools/list' request: Tell the client what tools are available.
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  const tools = Object.entries(CORE_API_MCP_TOOLS).map(([name, tool]) => ({
+    name,
+    description: tool.description,
+    inputSchema: tool.inputSchema,
+  }));
+
+  return ListToolsResultSchema.parse({
+    tools,
+  });
+});
+
+// Handle 'tools/call' request: Execute the tool when the LLM calls it.
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name: toolName, arguments: args } = request.params;
+
+  if (!CORE_API_MCP_TOOLS[toolName as keyof typeof CORE_API_MCP_TOOLS]) {
+    throw new Error(`Tool not found: ${toolName}`);
+  }
+
+  // Execute the tool by calling the Core API
+  const result = await executeCoreAPITool(toolName as keyof typeof CORE_API_MCP_TOOLS, args);
+
+  return CallToolResultSchema.parse({
+    content: result,
+  });
+});
+
+// Set up JSON-RPC server and connect it to stdio (for local testing)
+const jsonRpcServer = createJSONRPC10Server();
+const transport = new StdioServerTransport(process.stdin, process.stdout);
+jsonRpcServer.setTransport(transport);
+server.connect(jsonRpcServer);
+
+console.log('✅ Core API MCP Server is running and ready to accept connections.');
+```
+
+---
+
+### **Step 3: Create a Client Script to Test the MCP Server (`test-mcp-client.ts`)**
+
+This script uses the Vercel AI SDK to connect to your local MCP server and demonstrates how an AI agent can use the Core API tools.
+
+```ts
+// test-mcp-client.ts
+import { experimental_createMCPClient as createMCPClient } from 'ai';
+import { generateText, stepCountIs } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { Experimental_StdioMCPTransport } from 'ai/mcp-stdio';
+
+async function main() {
+  // Initialize the MCP client to connect to our local stdio server
+  const mcpTransport = new Experimental_StdioMCPTransport({
+    command: 'npx',
+    args: ['ts-node', 'core-api-mcp-server.ts'], // Points to your MCP server file
+  });
+
+  const mcpClient = await createMCPClient({
+    transport: mcpTransport,
+  });
+
+  try {
+    // Fetch all tools from the MCP server
+    const coreTools = await mcpClient.tools();
+
+    console.log('🔍 Available Core API Tools:', Object.keys(coreTools));
+
+    // Use the tools in a multi-step AI generation
+    const result = await generateText({
+      model: openai('gpt-4o'),
+      tools: coreTools,
+      stopWhen: stepCountIs(5), // Allow up to 5 steps for complex queries
+      system: `You are a scholarly research assistant with access to the Core API.
+      Use the provided tools to find the most relevant and up-to-date information.
+      Always cite the source (e.g., work ID or output ID) when presenting results.`,
+      prompt: `Find 3 recent (published after 2023) research papers about "Large Language Models in Education".
+      For one of them, also find its source-specific outputs and tell me which repository it came from.`,
+    });
+
+    console.log('\n📝 Final Answer from AI Agent:');
+    console.log(result.text);
+
+    // Optionally, log all steps for debugging
+    console.log('\n📊 Execution Steps:');
+    result.steps.forEach((step, index) => {
+      console.log(`\n--- Step ${index + 1} ---`);
+      if (step.toolCalls.length > 0) {
+        step.toolCalls.forEach(tc => console.log(`🛠️  Tool Call: ${tc.toolName}`, tc.input));
+      }
+      if (step.toolResults.length > 0) {
+        step.toolResults.forEach(tr => console.log(`✅ Tool Result:`, tr.result));
+      }
+      if (step.text) {
+        console.log(`💬 AI Response: ${step.text}`);
+      }
+    });
+
+  } finally {
+    // Always close the MCP client to free up resources
+    await mcpClient.close();
+  }
+}
+
+// Run the test
+main().catch(console.error);
+```
+
+---
+
+### **Step 4: Running the System**
+
+1.  **Start the MCP Server (via the client):**
+    The client script (`test-mcp-client.ts`) will automatically start the MCP server as a child process because we configured the `StdioMCPTransport` to run `npx ts-node core-api-mcp-server.ts`.
+
+2.  **Run the Client:**
+    ```bash
+    npx ts-node test-mcp-client.ts
+    ```
+
+3.  **(Optional) Deploy the MCP Server:**
+    For production, you would deploy the MCP server as a standalone HTTP service (using `StreamableHTTPServer` from the MCP SDK) and connect to it via `StreamableHTTPClientTransport` in your Vercel app.
+
+---
+
+### **Why This Implementation is Compliant and Effective**
+
+1.  **MCP Standard Compliance**: The server implements the MCP protocol using the official SDK, making it interoperable with any MCP client, not just Vercel's.
+2.  **Core API Coverage**: It exposes a comprehensive set of functions covering all major entities (Works, Outputs, Data Providers, Journals) and operations (search, get, aggregate, download).
+3.  **Vercel AI SDK Ready**: The client-side code uses `experimental_createMCPClient` and integrates seamlessly with `generateText`, including multi-step execution and error handling.
+4.  **Error Handling**: Errors from the Core API are thrown in the server, which the AI SDK will convert into `tool-error` parts, allowing the LLM to attempt recovery.
+5.  **Scalable Architecture**: By separating the MCP server from the AI agent, you can scale, update, or secure the Core API integration independently.
+6.  **Type Safety**: Although MCP tools are dynamic, the server defines clear Zod schemas, which can be mirrored on the client for full type safety if desired.
+
+This setup transforms the Core API into a powerful, standardized toolbox that any AI agent built with the Vercel AI SDK can leverage to perform sophisticated scholarly research.

@@ -10,6 +10,7 @@ import {
   Loader,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReferencesDisplay } from "../ReferencesDisplay/ReferencesDisplay";
 import styles from "./ToolCallBox.module.scss";
 import { ToolCall } from "../../types/types";
 
@@ -20,7 +21,7 @@ interface ToolCallBoxProps {
 export const ToolCallBox = React.memo<ToolCallBoxProps>(({ toolCall }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const { name, args, result, status } = useMemo(() => {
+  const { name, args, result, status, references } = useMemo(() => {
     const toolName = toolCall.name || "Unknown Tool";
     const toolArgs = toolCall.args || "{}";
     let parsedArgs = {};
@@ -32,12 +33,26 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(({ toolCall }) => {
     }
     const toolResult = toolCall.result || null;
     const toolStatus = toolCall.status || "completed";
+    
+    // Extract references from the result if available
+    let extractedReferences = [];
+    if (toolResult) {
+      try {
+        const parsedResult = typeof toolResult === "string" ? JSON.parse(toolResult) : toolResult;
+        if (parsedResult && parsedResult.references && Array.isArray(parsedResult.references)) {
+          extractedReferences = parsedResult.references;
+        }
+      } catch {
+        // If parsing fails, no references
+      }
+    }
 
     return {
       name: toolName,
       args: parsedArgs,
       result: toolResult,
       status: toolStatus,
+      references: extractedReferences,
     };
   }, [toolCall]);
 
@@ -98,6 +113,11 @@ export const ToolCallBox = React.memo<ToolCallBoxProps>(({ toolCall }) => {
                   ? result
                   : JSON.stringify(result, null, 2)}
               </pre>
+            </div>
+          )}
+          {references && references.length > 0 && (
+            <div className={styles.section}>
+              <ReferencesDisplay references={references} title="Sources" />
             </div>
           )}
         </div>

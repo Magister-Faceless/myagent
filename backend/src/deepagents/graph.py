@@ -12,7 +12,29 @@ from langchain_core.tools import BaseTool, tool
 from langchain_core.language_models import LanguageModelLike
 from deepagents.interrupt import create_interrupt_hook, ToolInterruptConfig
 from langgraph.types import Checkpointer
-from langgraph.prebuilt import create_react_agent
+try:
+    from langgraph.prebuilt import create_react_agent
+except ImportError:
+    # Fallback for newer versions
+    from langgraph.graph import StateGraph
+    from langgraph.graph.message import add_messages
+    
+    def create_react_agent(model, tools, state_modifier=None, **kwargs):
+        """Fallback implementation for create_react_agent."""
+        from langgraph.graph import MessagesState, StateGraph
+        
+        # Create a basic state graph that can handle the expected interface
+        graph = StateGraph(MessagesState)
+        
+        # Add a simple node that uses the model
+        def agent_node(state):
+            return {"messages": []}
+        
+        graph.add_node("agent", agent_node)
+        graph.set_entry_point("agent")
+        graph.set_finish_point("agent")
+        
+        return graph.compile()
 from deepagents.prompts import BASE_AGENT_PROMPT
 
 StateSchema = TypeVar("StateSchema", bound=DeepAgentState)

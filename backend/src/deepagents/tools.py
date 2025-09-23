@@ -2,7 +2,12 @@ from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.types import Command
 from langchain_core.messages import ToolMessage
 from typing import Annotated, Union
-from langgraph.prebuilt import InjectedState
+try:
+    from langgraph.prebuilt import InjectedState
+except ImportError:
+    # Fallback for newer versions
+    from typing import Any
+    InjectedState = Any
 
 from deepagents.prompts import (
     WRITE_TODOS_TOOL_DESCRIPTION,

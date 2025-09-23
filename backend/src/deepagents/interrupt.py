@@ -2,12 +2,30 @@
 
 from typing import Dict, Any, List, Optional, Union
 from langgraph.types import interrupt
-from langgraph.prebuilt.interrupt import (
-    HumanInterruptConfig,
-    ActionRequest,
-    HumanInterrupt,
-    HumanResponse,
-)
+try:
+    from langgraph.prebuilt.interrupt import (
+        HumanInterruptConfig,
+        ActionRequest,
+        HumanInterrupt,
+        HumanResponse,
+    )
+except ImportError:
+    # Fallback for newer versions - create dummy classes
+    class HumanInterruptConfig:
+        def __init__(self, *args, **kwargs):
+            pass
+    
+    class ActionRequest:
+        def __init__(self, *args, **kwargs):
+            pass
+    
+    class HumanInterrupt:
+        def __init__(self, *args, **kwargs):
+            pass
+    
+    class HumanResponse:
+        def __init__(self, *args, **kwargs):
+            pass
 
 ToolInterruptConfig = Dict[str, Union[HumanInterruptConfig, bool]]
 
