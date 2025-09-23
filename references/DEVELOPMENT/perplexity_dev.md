@@ -69,7 +69,7 @@ ROUTING_CONFIG = {
 
 ## Standardized Return Schema
 
-All Perplexity tools must return this consistent structure:
+All Perplexity tools must return this consistent structure with **mandatory citations** for frontend display:
 
 ```python
 {
@@ -84,14 +84,14 @@ All Perplexity tools must return this consistent structure:
     },
     "answer": str,  # Concise synthesis for user
     "reasoning_summary": str,  # Brief methodology, not chain-of-thought
-    "citations": [
+    "citations": [  # REQUIRED: Always include when available from Perplexity API
         {
             "title": str,
             "url": str,
             "snippet": str,
-            "published_at": str | None,
-            "source_type": "primary" | "secondary" | "tertiary",
-            "quality_score": float  # 0-1
+            "published_at": str | None,  # Maps to Perplexity's "date" field
+            "source_type": "primary" | "secondary" | "tertiary",  # Inferred from domain
+            "quality_score": float  # 0-1, derived from search ranking
         }
     ],
     "results": List[dict],  # Raw API results (trimmed)
@@ -99,7 +99,7 @@ All Perplexity tools must return this consistent structure:
         "prompt_tokens": int,
         "completion_tokens": int,
         "total_tokens": int,
-        "cost_estimate": float
+        "cost_estimate": float | None  # optional; monitoring only (no credit accounting)
     },
     "timing": {
         "started_at": str,  # ISO timestamp
@@ -110,6 +110,20 @@ All Perplexity tools must return this consistent structure:
     "debug": dict  # Internal diagnostics
 }
 ```
+
+### Citations Integration with Frontend UI
+
+The Deep Agents UI **already includes a ReferencesDisplay component** that supports:
+- Collapsible citation lists with count indicators
+- Title, URL, score, and published date display
+- External link navigation
+- Professional styling with icons
+
+**Citation Mapping**: Perplexity API → Frontend UI
+- `citations[]` URLs → `references[].url`
+- `search_results[].title` → `references[].title`  
+- `search_results[].date` → `references[].published_date`
+- Search ranking position → `references[].score` (0-1 normalized)
 
 ## Core Architecture
 
@@ -174,18 +188,7 @@ task_results = await asyncio.gather(
 # Synthesize results with citations
 ```
 
-### 4. Credit System Integration
 
-#### 4.1 Usage Tracking
-- Map Perplexity model usage to MyAgents credit tiers:
-  - **Normal Mode**: sonar_pro (1-2 credits)
-  - **Pro Mode**: sonar_reasoning (3-5 credits)  
-  - **Deep Mode**: sonar_deep_research (5-10 credits)
-
-#### 4.2 Budget Enforcement
-- Pre-flight credit checks before expensive operations
-- Graceful degradation (cheaper model) when approaching limits
-- Usage reporting in tool return schema
 
 ## DeepAgents Framework Compliance
 
@@ -216,17 +219,18 @@ task_results = await asyncio.gather(
 ## Development Roadmap (Revised)
 
 ### Phase 1: Foundation (Week 1-2)
-- [ ] **Extend existing tools**
-  - [ ] Update `backend/tools/search/perplexity.py` to return standardized schema
-  - [ ] Create `perplexity_client.py` with routing and authentication
-  - [ ] Implement `perplexity_config.py` with routing policies
+- [ ] **Extend existing tools with citations**
+  - [ ] Update `backend/tools/search/perplexity.py` to return standardized schema with citations
+  - [ ] Create `perplexity_client.py` with routing, authentication, and citation extraction
+  - [ ] Implement `perplexity_config.py` with routing policies and domain quality scoring
   - [ ] Add Perplexity configuration to `backend/config/settings.py`
+  - [ ] **Citations Integration**: Map Perplexity API citations/search_results to frontend schema
 
-- [ ] **Create core subagent**
-  - [ ] Implement `deep_research_agent.py` with minimal prompt
-  - [ ] Add `DEEP_RESEARCH_PROMPT` to `backend/config/prompts.py`
+- [ ] **Create core subagent with references**
+  - [ ] Implement `deep_research_agent.py` with minimal prompt and citation requirements
+  - [ ] Add `DEEP_RESEARCH_PROMPT` to `backend/config/prompts.py` (emphasize citation validation)
   - [ ] Register subagent in `backend/agents/main_agent.py`
-  - [ ] Test basic functionality with existing tools
+  - [ ] Test basic functionality with citations display in frontend UI
 
 ### Phase 2: Specialization (Week 3-4)
 - [ ] **Add specialized subagents**
@@ -241,10 +245,6 @@ task_results = await asyncio.gather(
   - [ ] Add strategy selection logic to routing system
 
 ### Phase 3: Integration and Optimization (Week 5-6)
-- [ ] **Credit system integration**
-  - [ ] Map Perplexity models to MyAgents credit tiers
-  - [ ] Implement budget enforcement and graceful degradation
-  - [ ] Add usage tracking to tool return schemas
 
 - [ ] **Performance optimization**
   - [ ] Implement caching for frequent queries
@@ -271,11 +271,13 @@ task_results = await asyncio.gather(
 
 ### For Each New Tool
 - [ ] Implements `@tool` decorator with clear docstring
-- [ ] Returns standardized schema (status, answer, citations, usage, timing)
+- [ ] Returns standardized schema (status, answer, **citations**, usage, timing)
+- [ ] **Citations Required**: Always extracts and formats citations from Perplexity API responses
 - [ ] Handles errors gracefully and returns error in schema
 - [ ] Uses environment variables from `backend/.env`
 - [ ] Registered in appropriate agent's tools list
 - [ ] Includes type hints and parameter documentation
+- [ ] **Frontend Integration**: Citations automatically display via ReferencesDisplay component
 
 ### For Each New Subagent
 - [ ] Creator function returns `SubAgent` instance
@@ -291,6 +293,14 @@ task_results = await asyncio.gather(
 - [ ] Environment variables documented in `.env.example`
 - [ ] No modifications to `backend/src/deepagents/` source files
 - [ ] All components work with DeepAgents' built-in planning tools
+
+### For Citations & Frontend Integration
+- [ ] **Backend**: All Perplexity tools return citations in standardized format
+- [ ] **Frontend**: ReferencesDisplay component integrated into ChatMessage flow
+- [ ] **Data Mapping**: Perplexity API citations mapped to frontend Reference interface
+- [ ] **UI Testing**: Citations display correctly with collapsible interface
+- [ ] **Quality Scoring**: Domain-based source quality scoring implemented
+- [ ] **User Experience**: Users can click citations to verify response sources
 
 ## Quality Assurance
 
