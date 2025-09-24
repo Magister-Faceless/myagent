@@ -102,6 +102,36 @@
   margin: 0;
 }
 
+.threadItemContainer {
+  position: relative;
+  width: 100%;
+  border-radius: $radius-md;
+  margin-bottom: 2px;
+  transition: all $transition-base;
+  padding-right: 32px; // Space for delete button
+  
+  &:hover {
+    .deleteButton {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+
+  &.active {
+    background-color: var(--color-avatar-bg);
+
+    .threadItem {
+      .threadIcon {
+        color: var(--color-primary);
+      }
+
+      .threadTitle {
+        color: var(--color-primary);
+      }
+    }
+  }
+}
+
 .threadItem {
   display: flex;
   align-items: flex-start;
@@ -114,21 +144,16 @@
   text-align: left;
   cursor: pointer;
   transition: background-color $transition-base;
+  position: relative;
+  z-index: 1;
 
   &:hover {
     background-color: var(--color-border-light);
   }
 
-  &.active {
-    background-color: var(--color-avatar-bg);
-
-    .threadIcon {
-      color: var(--color-primary);
-    }
-
-    .threadTitle {
-      color: var(--color-primary);
-    }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 
@@ -143,24 +168,72 @@
 .threadContent {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .threadTitle {
   font-size: $font-size-sm;
   font-weight: $font-weight-medium;
   color: var(--color-text-primary);
-  margin-bottom: $spacing-xs;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  line-clamp: 2; // Standard property for modern browsers
+  -webkit-line-clamp: 2; // show up to 2 lines
+  -webkit-box-orient: vertical;
+  line-height: $line-height-normal;
+  max-height: calc(2 * #{$line-height-normal});
+  width: 100%;
+  text-align: left;
 }
 
 .threadPreview {
   font-size: $font-size-xs;
   color: var(--color-text-tertiary);
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
   line-height: $line-height-normal;
+  text-align: left;
+}
+
+.deleteButton {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 1; // temporarily always visible to verify rendering
+  visibility: visible;
+  transition: all 0.2s ease;
+  padding: 0;
+  z-index: 2;
+
+  &:hover {
+    color: var(--color-danger);
+    background-color: var(--color-danger-bg);
+    opacity: 1;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
 }

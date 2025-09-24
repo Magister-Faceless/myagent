@@ -9,10 +9,11 @@ import React, {
   FormEvent,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Send, Bot, LoaderCircle, SquarePen, History, X } from "lucide-react";
 import { ChatMessage } from "../ChatMessage/ChatMessage";
 import { ThreadHistorySidebar } from "../ThreadHistorySidebar/ThreadHistorySidebar";
+import { ActiveSubAgentsPanel } from "../ActiveSubAgentsPanel/ActiveSubAgentsPanel";
 import type { SubAgent, TodoItem, ToolCall } from "../../types/types";
 import { useChat } from "../../hooks/useChat";
 import styles from "./ChatInterface.module.scss";
@@ -46,6 +47,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
     const [input, setInput] = useState("");
     const [isThreadHistoryOpen, setIsThreadHistoryOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const { messages, isLoading, sendMessage, stopStream } = useChat(
       threadId,
@@ -58,6 +60,14 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
+    // Auto-resize textarea based on content
+    const autoResizeTextarea = useCallback(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+    }, []);
+
     const handleSubmit = useCallback(
       (e: FormEvent) => {
         e.preventDefault();
@@ -65,6 +75,11 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
         if (!messageText || isLoading) return;
         sendMessage(messageText);
         setInput("");
+        // Reset height after sending
+        const el = textareaRef.current;
+        if (el) {
+          el.style.height = "auto";
+        }
       },
       [input, isLoading, sendMessage],
     );
@@ -186,7 +201,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <Bot className={styles.logo} />
-            <h1 className={styles.title}>Deep Agents</h1>
+            <h1 className={styles.title}>MyAgents</h1>
           </div>
           <div className={styles.headerRight}>
             <Button
@@ -222,6 +237,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
               </div>
             )}
             <div className={styles.messagesList}>
+              <ActiveSubAgentsPanel />
               {processedMessages.map((data) => (
                 <ChatMessage
                   key={data.message.id}
@@ -243,12 +259,30 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
           </div>
         </div>
         <form onSubmit={handleSubmit} className={styles.inputForm}>
-          <Input
+          <Textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
+            onChange={(e) => {
+              setInput(e.target.value);
+              autoResizeTextarea();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (input.trim() && !isLoading) {
+                  // submit
+                  // We call handleSubmit manually since we're preventing default
+                  sendMessage(input.trim());
+                  setInput("");
+                  const el = textareaRef.current;
+                  if (el) el.style.height = "auto";
+                }
+              }
+            }}
+            placeholder="Type your message... (Shift+Enter for new line)"
             disabled={isLoading}
-            className={styles.input}
+            className={styles.textarea}
+            rows={1}
           />
           {isLoading ? (
             <Button

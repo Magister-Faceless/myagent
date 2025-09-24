@@ -277,6 +277,54 @@ class PerplexityClient:
             "error": error_msg,
             "debug": {}
         }
+    
+    def chat_completion(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Direct chat completion method for custom requests."""
+        try:
+            response = requests.post(self.api_url, headers=self.headers, json=request_data)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            raise Exception(f"Chat completion failed: {str(e)}")
+    
+    def async_chat_completion(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Submit async chat completion request."""
+        async_url = "https://api.perplexity.ai/async/chat/completions"
+        try:
+            payload = {"request": request_data}
+            response = requests.post(async_url, headers=self.headers, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            raise Exception(f"Async chat completion submission failed: {str(e)}")
+    
+    def poll_async_completion(self, request_id: str, max_wait_time: int = 600) -> Optional[Dict[str, Any]]:
+        """Poll for async completion results with timeout."""
+        url = f"https://api.perplexity.ai/async/chat/completions/{request_id}"
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        
+        start_time = time.time()
+        while time.time() - start_time < max_wait_time:
+            try:
+                response = requests.get(url, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                
+                status = data.get('status')
+                if status == 'COMPLETED':
+                    return data
+                elif status == 'FAILED':
+                    return data
+                
+                # Wait before next poll
+                time.sleep(2)
+                
+            except Exception as e:
+                # Continue polling on temporary errors
+                time.sleep(5)
+                continue
+        
+        return None  # Timeout
 
 # Global client instance
 _client = None

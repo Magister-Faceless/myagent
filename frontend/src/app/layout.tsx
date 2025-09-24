@@ -8,8 +8,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Deep Agents",
-  description: "AI-powered deep agent system",
+  title: "MyAgents",
+  description: "AI-powered agent system for research and automation",
 };
 
 export default function RootLayout({

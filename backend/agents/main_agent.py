@@ -11,6 +11,10 @@ from src.deepagents.sub_agent import SubAgent
 from tools.search.tavily_search import tavily_search, tavily_qna_search
 from tools.search.perplexity import perplexity_reasoning_search, perplexity_focused_research
 from tools.search.perplexity_strategies import academic_search, technical_search, market_research, deep_research
+from tools.search.sonar_deep_research import sonar_deep_research
+
+# Import utility tools
+from tools.subagent_tracker import get_active_subagents, get_subagent_summary
 
 # Import subagent creators
 from subagents.general_agent import create_general_subagent
@@ -42,7 +46,7 @@ def create_main_agent():
     # Get the default model with fallback
     model = get_default_model()
     
-    # Create the main deep agent
+    # Create the main deep agent with human-in-the-loop for high-cost operations
     agent = create_deep_agent(
         tools=[
             # General search tools
@@ -55,7 +59,12 @@ def create_main_agent():
             academic_search,
             technical_search,
             market_research,
-            deep_research
+            deep_research,
+            # Elite sonar deep research tool
+            sonar_deep_research,
+            # Utility tools for task and subagent management
+            get_active_subagents,
+            get_subagent_summary
         ],
         instructions=MAIN_AGENT_INSTRUCTIONS,
         subagents=[
@@ -66,6 +75,15 @@ def create_main_agent():
             technical_research_subagent
         ],
         model=model,
+        # Configure human-in-the-loop for task spawning when using sonar-deep-research agent
+        interrupt_config={
+            "task": {
+                "allow_ignore": False,
+                "allow_respond": True,
+                "allow_edit": True,
+                "allow_accept": True,
+            }
+        }
     ).with_config({"recursion_limit": settings["recursion_limit"]})
     
     return agent

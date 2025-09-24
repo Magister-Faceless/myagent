@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, X } from "lucide-react";
+import { MessageSquare, X, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/client";
 import { useAuthContext } from "@/providers/Auth";
 import { getDeployment } from "@/lib/environment/deployments";
@@ -22,8 +22,31 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
   ({ open, setOpen, currentThreadId, onThreadSelect }) => {
     const [threads, setThreads] = useState<Thread[]>([]);
     const [isLoadingThreadHistory, setIsLoadingThreadHistory] = useState(true);
+    const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
     const { session } = useAuthContext();
     const deployment = useMemo(() => getDeployment(), []);
+
+    const handleDeleteThread = useCallback(async (threadId: string, event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (!deployment?.deploymentUrl || !session?.accessToken) return;
+      
+      if (!window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
+        return;
+      }
+      
+      setDeletingThreadId(threadId);
+      try {
+        const client = createClient(session.accessToken);
+        await client.threads.delete(threadId);
+        // Remove the thread from the local state
+        setThreads(prevThreads => prevThreads.filter(t => t.id !== threadId));
+      } catch (error) {
+        console.error('Failed to delete thread:', error);
+        alert('Failed to delete thread. Please try again.');
+      } finally {
+        setDeletingThreadId(null);
+      }
+    }, [deployment?.deploymentUrl, session?.accessToken]);
 
     const fetchThreads = useCallback(async () => {
       if (!deployment?.deploymentUrl || !session?.accessToken) return;
@@ -132,6 +155,8 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
                         key={thread.id}
                         thread={thread}
                         isActive={thread.id === currentThreadId}
+                        onDelete={handleDeleteThread}
+                        isDeleting={deletingThreadId === thread.id}
                         onClick={() => onThreadSelect(thread.id)}
                       />
                     ))}
@@ -145,6 +170,8 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
                         key={thread.id}
                         thread={thread}
                         isActive={thread.id === currentThreadId}
+                        onDelete={handleDeleteThread}
+                        isDeleting={deletingThreadId === thread.id}
                         onClick={() => onThreadSelect(thread.id)}
                       />
                     ))}
@@ -158,6 +185,8 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
                         key={thread.id}
                         thread={thread}
                         isActive={thread.id === currentThreadId}
+                        onDelete={handleDeleteThread}
+                        isDeleting={deletingThreadId === thread.id}
                         onClick={() => onThreadSelect(thread.id)}
                       />
                     ))}
@@ -171,6 +200,8 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
                         key={thread.id}
                         thread={thread}
                         isActive={thread.id === currentThreadId}
+                        onDelete={handleDeleteThread}
+                        isDeleting={deletingThreadId === thread.id}
                         onClick={() => onThreadSelect(thread.id)}
                       />
                     ))}
@@ -188,18 +219,38 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
 const ThreadItem = React.memo<{
   thread: Thread;
   isActive: boolean;
+  isDeleting?: boolean;
   onClick: () => void;
-}>(({ thread, isActive, onClick }) => {
+  onDelete?: (threadId: string, event: React.MouseEvent) => void;
+}>(({ thread, isActive, isDeleting, onClick, onDelete }) => {
   return (
-    <button
-      onClick={onClick}
-      className={`${styles.threadItem} ${isActive ? styles.active : ""}`}
-    >
-      <MessageSquare className={styles.threadIcon} />
-      <div className={styles.threadContent}>
-        <div className={styles.threadTitle}>{thread.title}</div>
-      </div>
-    </button>
+    <div className={`${styles.threadItemContainer} ${isActive ? styles.active : ''}`}>
+      <button
+        onClick={onClick}
+        className={`${styles.threadItem} ${isActive ? styles.active : ""}`}
+        disabled={isDeleting}
+      >
+        <MessageSquare className={styles.threadIcon} />
+        <div className={styles.threadContent}>
+          <div className={styles.threadTitle} title={thread.title}>
+            {thread.title}
+          </div>
+          <div className={styles.threadPreview}>
+            {new Date(thread.updatedAt).toLocaleString()}
+          </div>
+        </div>
+      </button>
+      {onDelete && (
+        <button
+          className={styles.deleteButton}
+          onClick={(e) => onDelete(thread.id, e)}
+          disabled={isDeleting}
+          title="Delete thread"
+        >
+          {isDeleting ? '...' : <Trash2 size={14} />}
+        </button>
+      )}
+    </div>
   );
 });
 

@@ -176,6 +176,17 @@
   padding-left: 10px;
 }
 
+// New auto-resizing textarea used for the chat input
+.textarea {
+  flex: 1;
+  padding-left: 10px;
+  resize: none; // We handle resizing programmatically
+  min-height: 44px; // Comfortable tap target height
+  max-height: 200px; // Prevents taking over the screen
+  overflow-y: auto;
+  transition: height 0.15s ease;
+}
+
 .sendButton {
   padding: $spacing-sm $spacing-md;
 }
