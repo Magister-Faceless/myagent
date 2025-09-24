@@ -2,6 +2,8 @@
 
 This document lists concrete tools that can be implemented directly against CORE API v3. Each tool wraps a single endpoint or a small, well-defined set of endpoints. Subagents are separate from tools and should be narrowly prompted to use one or two of these tools to accomplish a specific research task.
 
+**Important**: All subagents automatically have access to built-in deepagents tools (`write_todos`, `ls`, `read_file`, `write_file`, `edit_file`, `task`) in addition to their specialized CORE API tools.
+
 ## Works (deduplicated research works)
 
 1. **SearchWorks**
@@ -12,6 +14,7 @@ This document lists concrete tools that can be implemented directly against CORE
 2. **GetWorkById**
    - What it does: Fetch one work by CORE ID or other supported identifier forms.
    - Endpoint: `GET /v3/works/{identifier}`
+   - **Large Response**: Uses `@handle_large_response` when `fullText` is included - writes full text to files
 
 3. **AggregateWorks**
    - What it does: Return counts grouped by fields to support evidence synthesis and scoping (e.g., trend and distribution analysis).
@@ -21,6 +24,7 @@ This document lists concrete tools that can be implemented directly against CORE
 4. **ScrollSearchWorks**
    - What it does: Retrieve very large result sets in batches for systematic reviews and meta-analyses.
    - Endpoint: `POST /v3/search/works` with `scroll=true`
+   - **Large Response**: Uses `@handle_large_response` - writes results to files automatically
 
 5. **FindWorksByDOI**
    - What it does: Convenience wrapper to find works by DOI (or list of DOIs) using field lookup.
@@ -87,14 +91,14 @@ This document lists concrete tools that can be implemented directly against CORE
 18. **TopVenuesForTopic**
     - What it does: Identify frequent publishers/journals for a query.
     - Backed by: `AggregateWorks` (fields: `publisher`) and `SearchJournals`
-
 19. **AuthorFrequencyForTopic**
     - What it does: Identify prolific authors in a niche for expert mapping and potential case-series builders.
     - Backed by: `AggregateWorks` (field: `authors`)
 
 20. **BatchGetWorksByIds**
-    - What it does: Convenience helper to fetch many works sequentially after a scroll run.
-    - Backed by: `GetWorkById`
+   - What it does: Convenience helper to fetch many works sequentially after a scroll run.
+   - Backed by: `GetWorkById`
+   - **Large Response**: Uses `@handle_large_response` - writes batch results to structured files
 
 21. **SystematicSearchTemplates**
     - What it does: Prebuilt query composers for common designs (e.g., RCTs, cohort, case-control, case series) using document type/keyword patterns.
@@ -105,14 +109,11 @@ This document lists concrete tools that can be implemented directly against CORE
     - Backed by: Fields from `SearchWorks`/`SearchOutputs`
 
 23. **ScrollExportWorks**
-    - What it does: End-to-end scroller that pages through results and returns normalized records ready for screening or extraction.
-    - Backed by: `ScrollSearchWorks`
+   - What it does: End-to-end scroller that pages through results and returns normalized records ready for screening or extraction.
+   - Backed by: `ScrollSearchWorks`
+   - **Large Response**: Uses `@handle_large_response` - exports to CSV/JSON files automatically
 
 ---
-
-## Notes on subagents (deepagents)
-
-- Tools are API wrappers. Subagents are spawnable, narrowly focused agents configured with:
   - A very specific prompt for a single task.
   - A minimal toolset (ideally 1–2 of the tools above) to execute that task efficiently.
 - Subagents do not respond to the user directly; they return results to the main agent.

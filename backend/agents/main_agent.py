@@ -13,6 +13,19 @@ from tools.search.perplexity import perplexity_reasoning_search, perplexity_focu
 from tools.search.perplexity_strategies import academic_search, technical_search, market_research, deep_research
 from tools.search.sonar_deep_research import sonar_deep_research
 
+# Import CORE API tools
+from tools.core_api import (
+    search_works, 
+    scroll_export_works,
+    get_work_by_id, 
+    batch_get_works_by_ids,
+    aggregate_works, 
+    time_trend_analysis,
+    search_journals, 
+    get_journal_by_id,
+    analyze_top_venues_for_topic
+)
+
 # Import utility tools
 from tools.subagent_tracker import get_active_subagents, get_subagent_summary
 
@@ -22,6 +35,9 @@ from subagents.reasoning_agent import create_reasoning_subagent
 from subagents.deep_research_agent import create_deep_research_agent
 from subagents.market_analysis_agent import create_market_analysis_agent
 from subagents.technical_research_agent import create_technical_research_agent
+
+# Import CORE API research subagents
+from subagents.core_research_subagents import get_all_core_research_subagents
 
 # Import configuration
 from config.prompts import MAIN_AGENT_INSTRUCTIONS
@@ -43,6 +59,9 @@ def create_main_agent():
     market_analysis_subagent = create_market_analysis_agent()
     technical_research_subagent = create_technical_research_agent()
     
+    # Get all CORE API research subagents
+    core_research_subagents = get_all_core_research_subagents()
+    
     # Get the default model with fallback
     model = get_default_model()
     
@@ -62,6 +81,16 @@ def create_main_agent():
             deep_research,
             # Elite sonar deep research tool
             sonar_deep_research,
+            # CORE API tools for scientific research
+            search_works,
+            scroll_export_works,
+            get_work_by_id,
+            batch_get_works_by_ids,
+            aggregate_works,
+            time_trend_analysis,
+            search_journals,
+            get_journal_by_id,
+            analyze_top_venues_for_topic,
             # Utility tools for task and subagent management
             get_active_subagents,
             get_subagent_summary
@@ -73,7 +102,7 @@ def create_main_agent():
             deep_research_subagent,
             market_analysis_subagent,
             technical_research_subagent
-        ],
+        ] + core_research_subagents,
         model=model,
         # Configure human-in-the-loop for task spawning when using sonar-deep-research agent
         interrupt_config={
