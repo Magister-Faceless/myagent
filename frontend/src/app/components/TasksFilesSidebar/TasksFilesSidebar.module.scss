@@ -10,20 +10,10 @@
   flex-shrink: 0;
 }
 
-.sidebarCollapsed {
-  width: $sidebar-collapsed-width;
-  height: 100%;
-  background-color: var(--color-surface);
-  border-right: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
 
 .header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: $spacing-md;
   height: 60px;
@@ -36,13 +26,6 @@
   margin: 0;
 }
 
-.toggleButton {
-  padding: $spacing-xs;
-
-  &:hover {
-    background-color: var(--color-border-light);
-  }
-}
 
 .tabs {
   flex: 1;
@@ -127,6 +110,10 @@
   color: var(--color-text-secondary);
   text-transform: uppercase;
   margin-bottom: $spacing-sm;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .todoItem {
@@ -137,6 +124,8 @@
   border-radius: $radius-md;
   margin-bottom: $spacing-xs;
   transition: background-color $transition-base;
+  width: 100%;
+  min-width: 0;
 
   &:last-child {
     margin-bottom: 0;
@@ -148,6 +137,12 @@
   font-size: $font-size-sm;
   line-height: $line-height-normal;
   color: var(--color-text-primary);
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  white-space: normal;
+  min-width: 0;
 }
 
 .completedIcon {
@@ -186,6 +181,8 @@
   padding: $spacing-xs $spacing-sm;
   cursor: pointer;
   transition: background-color $transition-base;
+  width: 100%;
+  min-width: 0;
 
   &:hover {
     background-color: var(--color-border-light);
@@ -201,7 +198,10 @@
   flex: 1;
   font-size: $font-size-sm;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  white-space: normal;
+  min-width: 0;
 }

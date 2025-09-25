@@ -2,8 +2,6 @@
 
 import React, { useState, useMemo, useCallback } from "react";
 import {
-  ChevronLeft,
-  ChevronRight,
   FileText,
   Folder,
   FolderOpen,
@@ -21,12 +19,10 @@ interface TasksFilesSidebarProps {
   todos: TodoItem[];
   files: Record<string, string>;
   onFileClick: (file: FileItem) => void;
-  collapsed: boolean;
-  onToggleCollapse: () => void;
 }
 
 export const TasksFilesSidebar = React.memo<TasksFilesSidebarProps>(
-  ({ todos, files, onFileClick, collapsed, onToggleCollapse }) => {
+  ({ todos, files, onFileClick }) => {
     const getStatusIcon = useCallback((status: TodoItem["status"]) => {
       switch (status) {
         case "completed":
@@ -46,33 +42,10 @@ export const TasksFilesSidebar = React.memo<TasksFilesSidebarProps>(
       };
     }, [todos]);
 
-    if (collapsed) {
-      return (
-        <div className={styles.sidebarCollapsed}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleCollapse}
-            className={styles.toggleButton}
-          >
-            <ChevronRight size={20} />
-          </Button>
-        </div>
-      );
-    }
-
     return (
       <div className={styles.sidebar}>
         <div className={styles.header}>
           <h2 className={styles.title}>Workspace</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleCollapse}
-            className={styles.toggleButton}
-          >
-            <ChevronLeft size={20} />
-          </Button>
         </div>
         <Tabs defaultValue="tasks" className={styles.tabs}>
           <TabsList className={styles.tabsList}>

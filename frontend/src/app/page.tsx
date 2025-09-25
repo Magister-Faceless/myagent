@@ -7,6 +7,7 @@ import { TasksFilesSidebar } from "./components/TasksFilesSidebar/TasksFilesSide
 import { SubAgentPanel } from "./components/SubAgentPanel/SubAgentPanel";
 import { FileViewDialog } from "./components/FileViewDialog/FileViewDialog";
 import { AgentSelector } from "./components/AgentSelector/AgentSelector";
+import { ThreadHistorySidebar } from "./components/ThreadHistorySidebar/ThreadHistorySidebar";
 import { createClientForAgent } from "@/lib/client";
 import { useAuthContext } from "@/providers/Auth";
 import { AVAILABLE_AGENTS, getDefaultAgent } from "@/lib/agents/config";
@@ -24,8 +25,8 @@ export default function HomePage() {
   const [threadId, setThreadId] = useQueryState("threadId");
   const [currentAgent, setCurrentAgent] = useState<Agent>(getDefaultAgent());
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isLoadingThreadState, setIsLoadingThreadState] = useState(false);
+  const [isThreadHistoryOpen, setIsThreadHistoryOpen] = useState(false);
 
   const [agentContexts, setAgentContexts] = useState<
     Record<string, AgentContext>
@@ -43,8 +44,8 @@ export default function HomePage() {
     );
   }, [agentContexts, currentAgent.id, currentAgent]);
 
-  const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed((prev) => !prev);
+  const toggleThreadHistory = useCallback(() => {
+    setIsThreadHistoryOpen((prev) => !prev);
   }, []);
 
   const handleAgentChange = useCallback(
@@ -153,6 +154,14 @@ export default function HomePage() {
     });
   }, [setThreadId, updateCurrentContext]);
 
+  const handleThreadSelect = useCallback(
+    (id: string) => {
+      setThreadId(id);
+      setIsThreadHistoryOpen(false);
+    },
+    [setThreadId]
+  );
+
   const handleTodosUpdate = useCallback(
     (todos: TodoItem[]) => {
       updateCurrentContext({ todos });
@@ -176,13 +185,14 @@ export default function HomePage() {
 
   return (
     <div className={styles.container}>
+      {/* Left Column - Workspace */}
       <TasksFilesSidebar
         todos={currentContext.todos}
         files={currentContext.files}
         onFileClick={setSelectedFile}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={toggleSidebar}
       />
+      
+      {/* Central Column - Chat */}
       <div className={styles.mainContent}>
         <div className={styles.agentHeader}>
           <AgentSelector
@@ -201,6 +211,7 @@ export default function HomePage() {
           onTodosUpdate={handleTodosUpdate}
           onFilesUpdate={handleFilesUpdate}
           onNewThread={handleNewThread}
+          onThreadSelect={handleThreadSelect}
           isLoadingThreadState={isLoadingThreadState}
         />
         {currentContext.selectedSubAgent && (
@@ -210,6 +221,15 @@ export default function HomePage() {
           />
         )}
       </div>
+      
+      {/* Right Column - Thread History */}
+      <ThreadHistorySidebar
+        agent={currentAgent}
+        currentThreadId={threadId}
+        onThreadSelect={handleThreadSelect}
+        onNewThread={handleNewThread}
+      />
+      
       {selectedFile && (
         <FileViewDialog
           file={selectedFile}

@@ -10,9 +10,8 @@ import React, {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Bot, LoaderCircle, SquarePen, History, X } from "lucide-react";
+import { Send, Bot, LoaderCircle, SquarePen } from "lucide-react";
 import { ChatMessage } from "../ChatMessage/ChatMessage";
-import { ThreadHistorySidebar } from "../ThreadHistorySidebar/ThreadHistorySidebar";
 import { ActiveSubAgentsPanel } from "../ActiveSubAgentsPanel/ActiveSubAgentsPanel";
 import type { SubAgent, TodoItem, ToolCall, Agent } from "../../types/types";
 import { useChat } from "../../hooks/useChat";
@@ -31,6 +30,7 @@ interface ChatInterfaceProps {
   onTodosUpdate: (todos: TodoItem[]) => void;
   onFilesUpdate: (files: Record<string, string>) => void;
   onNewThread: () => void;
+  onThreadSelect: (threadId: string) => void;
   isLoadingThreadState: boolean;
 }
 
@@ -44,10 +44,10 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
     onTodosUpdate,
     onFilesUpdate,
     onNewThread,
+    onThreadSelect,
     isLoadingThreadState,
   }) => {
     const [input, setInput] = useState("");
-    const [isThreadHistoryOpen, setIsThreadHistoryOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -92,21 +92,8 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
       if (isLoading) {
         stopStream();
       }
-      setIsThreadHistoryOpen(false);
       onNewThread();
     }, [isLoading, stopStream, onNewThread]);
-
-    const handleThreadSelect = useCallback(
-      (id: string) => {
-        setThreadId(id);
-        setIsThreadHistoryOpen(false);
-      },
-      [setThreadId],
-    );
-
-    const toggleThreadHistory = useCallback(() => {
-      setIsThreadHistoryOpen((prev) => !prev);
-    }, []);
 
     const hasMessages = messages.length > 0;
 
@@ -215,19 +202,9 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
             >
               <SquarePen size={20} />
             </Button>
-            <Button variant="ghost" size="icon" onClick={toggleThreadHistory}>
-              <History size={20} />
-            </Button>
           </div>
         </div>
         <div className={styles.content}>
-          <ThreadHistorySidebar
-            agent={agent}
-            open={isThreadHistoryOpen}
-            setOpen={setIsThreadHistoryOpen}
-            currentThreadId={threadId}
-            onThreadSelect={handleThreadSelect}
-          />
           <div className={styles.messagesContainer}>
             {!hasMessages && !isLoading && !isLoadingThreadState && (
               <div className={styles.emptyState}>

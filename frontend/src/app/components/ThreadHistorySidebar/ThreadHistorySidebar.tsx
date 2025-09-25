@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, X, Trash2 } from "lucide-react";
+import { MessageSquare, Trash2, Plus } from "lucide-react";
 import { createClientForAgent } from "@/lib/client";
 import { useAuthContext } from "@/providers/Auth";
 import type { Thread, Agent } from "../../types/types";
@@ -12,14 +12,13 @@ import { extractStringFromMessageContent } from "../../utils/utils";
 
 interface ThreadHistorySidebarProps {
   agent: Agent;
-  open: boolean;
-  setOpen: (open: boolean) => void;
   currentThreadId: string | null;
   onThreadSelect: (threadId: string) => void;
+  onNewThread: () => void;
 }
 
 export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
-  ({ agent, open, setOpen, currentThreadId, onThreadSelect }) => {
+  ({ agent, currentThreadId, onThreadSelect, onNewThread }) => {
     const [threads, setThreads] = useState<Thread[]>([]);
     const [isLoadingThreadHistory, setIsLoadingThreadHistory] = useState(true);
     const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
@@ -118,98 +117,93 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
       return groups;
     }, [threads]);
 
-    if (!open) return null;
-
     return (
-      <div className={styles.overlay}>
-        <div className={styles.container}>
-          <div className={styles.header}>
-            <h3 className={styles.title}>Thread History</h3>
-            <div className={styles.headerActions}>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setOpen(false)}
-                className={styles.closeButton}
-              >
-                <X size={20} />
-              </Button>
-            </div>
-          </div>
-          <ScrollArea className={styles.scrollArea}>
-            {isLoadingThreadHistory ? (
-              <div className={styles.loading}>Loading threads...</div>
-            ) : threads.length === 0 ? (
-              <div className={styles.empty}>
-                <MessageSquare className={styles.emptyIcon} />
-                <p>No threads yet</p>
-              </div>
-            ) : (
-              <div className={styles.threadList}>
-                {groupedThreads.today.length > 0 && (
-                  <div className={styles.group}>
-                    <h4 className={styles.groupTitle}>Today</h4>
-                    {groupedThreads.today.map((thread) => (
-                      <ThreadItem
-                        key={thread.id}
-                        thread={thread}
-                        isActive={thread.id === currentThreadId}
-                        onDelete={handleDeleteThread}
-                        isDeleting={deletingThreadId === thread.id}
-                        onClick={() => onThreadSelect(thread.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-                {groupedThreads.yesterday.length > 0 && (
-                  <div className={styles.group}>
-                    <h4 className={styles.groupTitle}>Yesterday</h4>
-                    {groupedThreads.yesterday.map((thread) => (
-                      <ThreadItem
-                        key={thread.id}
-                        thread={thread}
-                        isActive={thread.id === currentThreadId}
-                        onDelete={handleDeleteThread}
-                        isDeleting={deletingThreadId === thread.id}
-                        onClick={() => onThreadSelect(thread.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-                {groupedThreads.week.length > 0 && (
-                  <div className={styles.group}>
-                    <h4 className={styles.groupTitle}>This Week</h4>
-                    {groupedThreads.week.map((thread) => (
-                      <ThreadItem
-                        key={thread.id}
-                        thread={thread}
-                        isActive={thread.id === currentThreadId}
-                        onDelete={handleDeleteThread}
-                        isDeleting={deletingThreadId === thread.id}
-                        onClick={() => onThreadSelect(thread.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-                {groupedThreads.older.length > 0 && (
-                  <div className={styles.group}>
-                    <h4 className={styles.groupTitle}>Older</h4>
-                    {groupedThreads.older.map((thread) => (
-                      <ThreadItem
-                        key={thread.id}
-                        thread={thread}
-                        isActive={thread.id === currentThreadId}
-                        onDelete={handleDeleteThread}
-                        isDeleting={deletingThreadId === thread.id}
-                        onClick={() => onThreadSelect(thread.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </ScrollArea>
+      <div className={styles.sidebar}>
+        <div className={styles.header}>
+          <h3 className={styles.title}>Threads</h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onNewThread}
+            className={styles.newThreadButton}
+            title="New Thread"
+          >
+            <Plus size={20} />
+          </Button>
         </div>
+        <ScrollArea className={styles.scrollArea}>
+          {isLoadingThreadHistory ? (
+            <div className={styles.loading}>Loading threads...</div>
+          ) : threads.length === 0 ? (
+            <div className={styles.empty}>
+              <MessageSquare className={styles.emptyIcon} />
+              <p>No threads yet</p>
+            </div>
+          ) : (
+            <div className={styles.threadList}>
+              {groupedThreads.today.length > 0 && (
+                <div className={styles.group}>
+                  <h4 className={styles.groupTitle}>Today</h4>
+                  {groupedThreads.today.map((thread) => (
+                    <ThreadItem
+                      key={thread.id}
+                      thread={thread}
+                      isActive={thread.id === currentThreadId}
+                      onDelete={handleDeleteThread}
+                      isDeleting={deletingThreadId === thread.id}
+                      onClick={() => onThreadSelect(thread.id)}
+                    />
+                  ))}
+                </div>
+              )}
+              {groupedThreads.yesterday.length > 0 && (
+                <div className={styles.group}>
+                  <h4 className={styles.groupTitle}>Yesterday</h4>
+                  {groupedThreads.yesterday.map((thread) => (
+                    <ThreadItem
+                      key={thread.id}
+                      thread={thread}
+                      isActive={thread.id === currentThreadId}
+                      onDelete={handleDeleteThread}
+                      isDeleting={deletingThreadId === thread.id}
+                      onClick={() => onThreadSelect(thread.id)}
+                    />
+                  ))}
+                </div>
+              )}
+              {groupedThreads.week.length > 0 && (
+                <div className={styles.group}>
+                  <h4 className={styles.groupTitle}>This Week</h4>
+                  {groupedThreads.week.map((thread) => (
+                    <ThreadItem
+                      key={thread.id}
+                      thread={thread}
+                      isActive={thread.id === currentThreadId}
+                      onDelete={handleDeleteThread}
+                      isDeleting={deletingThreadId === thread.id}
+                      onClick={() => onThreadSelect(thread.id)}
+                    />
+                  ))}
+                </div>
+              )}
+              {groupedThreads.older.length > 0 && (
+                <div className={styles.group}>
+                  <h4 className={styles.groupTitle}>Older</h4>
+                  {groupedThreads.older.map((thread) => (
+                    <ThreadItem
+                      key={thread.id}
+                      thread={thread}
+                      isActive={thread.id === currentThreadId}
+                      onDelete={handleDeleteThread}
+                      isDeleting={deletingThreadId === thread.id}
+                      onClick={() => onThreadSelect(thread.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </ScrollArea>
       </div>
     );
   },
