@@ -28,7 +28,7 @@ def create_literature_screener() -> SubAgent:
         "name": "literature_screener",
         "description": "Systematic literature search and screening for reviews and meta-analyses",
         "prompt": LITERATURE_SCREENER_PROMPT,
-        "tools": ["search_works", "scroll_export_works"]
+        # "tools": []  # Inherit tools from parent agent
     }
 
 def create_trend_analyzer() -> SubAgent:
@@ -42,7 +42,7 @@ def create_trend_analyzer() -> SubAgent:
         "name": "trend_analyzer",
         "description": "Research trend analysis and bibliometric insights",
         "prompt": TREND_ANALYZER_PROMPT,
-        "tools": ["aggregate_works", "time_trend_analysis"]
+        # "tools": []
     }
 
 def create_full_text_analyzer() -> SubAgent:
@@ -56,7 +56,7 @@ def create_full_text_analyzer() -> SubAgent:
         "name": "full_text_analyzer",
         "description": "Deep analysis of full-text research papers with structured extraction",
         "prompt": FULL_TEXT_ANALYZER_PROMPT,
-        "tools": ["get_work_by_id", "search_works"]
+        # "tools": []
     }
 
 def create_systematic_review_helper() -> SubAgent:
@@ -70,7 +70,7 @@ def create_systematic_review_helper() -> SubAgent:
         "name": "systematic_review_helper",
         "description": "PRISMA-compliant systematic review methodology and execution",
         "prompt": SYSTEMATIC_REVIEW_HELPER_PROMPT,
-        "tools": ["search_works", "scroll_export_works", "aggregate_works"]
+        # "tools": []
     }
 
 def create_meta_analysis_collector() -> SubAgent:
@@ -84,7 +84,7 @@ def create_meta_analysis_collector() -> SubAgent:
         "name": "meta_analysis_collector",
         "description": "Data extraction and preparation for meta-analysis",
         "prompt": META_ANALYSIS_COLLECTOR_PROMPT,
-        "tools": ["batch_get_works_by_ids", "get_work_by_id"]
+        # "tools": []
     }
 
 def create_venue_analyzer() -> SubAgent:
@@ -98,7 +98,7 @@ def create_venue_analyzer() -> SubAgent:
         "name": "venue_analyzer",
         "description": "Journal and venue analysis for optimal publication strategy",
         "prompt": VENUE_ANALYZER_PROMPT,
-        "tools": ["search_journals", "analyze_top_venues_for_topic"]
+        # "tools": []
     }
 
 def create_research_gap_identifier() -> SubAgent:
@@ -112,7 +112,7 @@ def create_research_gap_identifier() -> SubAgent:
         "name": "research_gap_identifier",
         "description": "Identification of underexplored research areas and opportunities",
         "prompt": RESEARCH_GAP_IDENTIFIER_PROMPT,
-        "tools": ["aggregate_works", "search_works"]
+        # "tools": []
     }
 
 def create_citation_network_mapper() -> SubAgent:
@@ -126,7 +126,7 @@ def create_citation_network_mapper() -> SubAgent:
         "name": "citation_network_mapper",
         "description": "Citation network analysis and research influence mapping",
         "prompt": CITATION_NETWORK_MAPPER_PROMPT,
-        "tools": ["search_works", "aggregate_works"]
+        # "tools": []
     }
 
 # Registry of all CORE research subagents

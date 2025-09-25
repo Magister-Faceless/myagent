@@ -1,7 +1,12 @@
 {
-  "dependencies": ["."],
+  "dependencies": [
+    "."
+  ],
   "graphs": {
-    "main-agent": "agents.main_agent:agent"
+    "main-agent": "agents.main_agent:agent",
+    "research-agent": "agents.research_agent:agent",
+    "code-assistant": "agents.code_assistant:agent",
+    "content-creator": "agents.content_creator:agent"
   },
   "env": ".env"
 }

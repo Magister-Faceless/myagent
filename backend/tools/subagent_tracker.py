@@ -88,103 +88,229 @@ class SubAgentTracker:
 subagent_tracker = SubAgentTracker()
 
 
-def create_enhanced_task_tool(original_task_tool):
+def create_enhanced_task_tool(original_task_tool, *, is_async: bool = True):
     """
     Create an enhanced version of the task tool that emits subagent events.
     This wraps the original task tool from the framework.
     """
-    
-    @tool(description=original_task_tool.description)
-    async def enhanced_task(
+
+    description = getattr(original_task_tool, "description", "Task delegation tool")
+    tool_name = getattr(original_task_tool, "name", "task")
+
+    def _start_tracking(subagent_type: str, task_description: str):
+        subagent_id = subagent_tracker.start_subagent(subagent_type, task_description)
+        start_event = subagent_tracker.create_subagent_event(
+            "subagent_started", subagent_id, subagent_type, task_description
+        )
+        start_message = SystemMessage(
+            content=(
+                f"🚀 **Subagent Started**: {subagent_type}\n"
+                f"**Task**: {task_description}\n"
+                f"**ID**: {subagent_id}\n"
+                f"**Event Data**: {json.dumps(start_event, indent=2)}"
+            )
+        )
+        return subagent_id, start_message
+
+    def _complete_tracking(
+        subagent_id: str,
+        subagent_type: str,
+        task_description: str,
+        result: Any,
+    ) -> SystemMessage:
+        subagent_tracker.complete_subagent(subagent_id, str(result))
+        completion_event = subagent_tracker.create_subagent_event(
+            "subagent_completed", subagent_id, subagent_type, task_description, "completed"
+        )
+        return SystemMessage(
+            content=(
+                f"✅ **Subagent Completed**: {subagent_type}\n"
+                f"**ID**: {subagent_id}\n"
+                f"**Event Data**: {json.dumps(completion_event, indent=2)}"
+            )
+        )
+
+    def _handle_success(
+        result: Any,
+        start_message: SystemMessage,
+        completion_message: Optional[SystemMessage],
+        tool_call_id: str,
+        fallback_content: str,
+    ) -> Command:
+        prefix = [start_message]
+        suffix = [completion_message] if completion_message is not None else []
+
+        if isinstance(result, Command):
+            existing_messages = list(result.update.get("messages", []) or [])
+            has_tool_message = any(isinstance(msg, ToolMessage) for msg in existing_messages)
+
+            if not has_tool_message:
+                existing_messages.append(
+                    ToolMessage(fallback_content, tool_call_id=tool_call_id)
+                )
+
+            result.update.setdefault("messages", [])
+            result.update["messages"] = prefix + existing_messages + suffix
+            return result
+
+        message_content = (
+            fallback_content if result is None or result == "" else str(result)
+        )
+
+        return Command(
+            update={
+                "messages": prefix
+                + [ToolMessage(message_content, tool_call_id=tool_call_id)]
+                + suffix
+            }
+        )
+
+    def _handle_error(
+        error: Exception,
+        start_message: SystemMessage,
+        subagent_id: str,
+        subagent_type: str,
+        task_description: str,
+        tool_call_id: str,
+    ) -> Command:
+        subagent_tracker.error_subagent(subagent_id, str(error))
+        error_event = subagent_tracker.create_subagent_event(
+            "subagent_error", subagent_id, subagent_type, task_description, "error"
+        )
+        error_message = SystemMessage(
+            content=(
+                f"❌ **Subagent Error**: {subagent_type}\n"
+                f"**ID**: {subagent_id}\n"
+                f"**Error**: {str(error)}\n"
+                f"**Event Data**: {json.dumps(error_event, indent=2)}"
+            )
+        )
+        return Command(
+            update={
+                "messages": [
+                    start_message,
+                    ToolMessage(
+                        f"Error in subagent {subagent_type}: {str(error)}",
+                        tool_call_id=tool_call_id,
+                    ),
+                    error_message,
+                ]
+            }
+        )
+
+    if is_async:
+
+        @tool(name=tool_name, description=description)
+        async def enhanced_task(
+            description: str,
+            subagent_type: str,
+            state: Annotated[DeepAgentState, InjectedState],
+            tool_call_id: Annotated[str, InjectedToolCallId],
+        ):
+            subagent_id, start_message = _start_tracking(subagent_type, description)
+
+            try:
+                result = await original_task_tool.ainvoke(
+                    {
+                        "description": description,
+                        "subagent_type": subagent_type,
+                        "state": state,
+                        "tool_call_id": tool_call_id,
+                    }
+                )
+                resume_pending = isinstance(result, Command) and getattr(
+                    result, "resume", None
+                )
+
+                if resume_pending:
+                    completion_message: Optional[SystemMessage] = SystemMessage(
+                        content=(
+                            f"⏳ **Subagent Pending**: {subagent_type}\n"
+                            f"**ID**: {subagent_id}\n"
+                            "The subagent accepted the task and is still running."
+                            " Resume the run once the subagent signals completion."
+                        )
+                    )
+                    fallback_content = (
+                        "Subagent acknowledged the task and is still running."
+                        " Await further updates."
+                    )
+                else:
+                    completion_message = _complete_tracking(
+                        subagent_id, subagent_type, description, result
+                    )
+                    fallback_content = "Subagent completed without additional output."
+
+                return _handle_success(
+                    result,
+                    start_message,
+                    completion_message,
+                    tool_call_id,
+                    fallback_content,
+                )
+            except Exception as error:  # pragma: no cover - surfaces to UI
+                return _handle_error(
+                    error,
+                    start_message,
+                    subagent_id,
+                    subagent_type,
+                    description,
+                    tool_call_id,
+                )
+
+        return enhanced_task
+
+    @tool(description=description)
+    def enhanced_task(
         description: str,
         subagent_type: str,
         state: Annotated[DeepAgentState, InjectedState],
         tool_call_id: Annotated[str, InjectedToolCallId],
     ):
-        # Start tracking the subagent
-        subagent_id = subagent_tracker.start_subagent(subagent_type, description)
-        
-        # Create start event message
-        start_event = subagent_tracker.create_subagent_event(
-            "subagent_started", subagent_id, subagent_type, description
-        )
-        
-        # Add system message about subagent starting
-        start_message = SystemMessage(
-            content=f"🚀 **Subagent Started**: {subagent_type}\n"
-                   f"**Task**: {description}\n"
-                   f"**ID**: {subagent_id}\n"
-                   f"**Event Data**: {json.dumps(start_event, indent=2)}"
-        )
-        
+        subagent_id, start_message = _start_tracking(subagent_type, description)
+
         try:
-            # Call the original task tool
-            result = await original_task_tool.ainvoke({
-                "description": description,
-                "subagent_type": subagent_type,
-                "state": state,
-                "tool_call_id": tool_call_id
-            })
-            
-            # Mark subagent as completed
-            subagent_tracker.complete_subagent(subagent_id, str(result))
-            
-            # Create completion event
-            completion_event = subagent_tracker.create_subagent_event(
-                "subagent_completed", subagent_id, subagent_type, description, "completed"
-            )
-            
-            # Add system message about completion
-            completion_message = SystemMessage(
-                content=f"✅ **Subagent Completed**: {subagent_type}\n"
-                       f"**ID**: {subagent_id}\n"
-                       f"**Event Data**: {json.dumps(completion_event, indent=2)}"
-            )
-            
-            # If result is a Command, add our messages to it
-            if isinstance(result, Command):
-                existing_messages = result.update.get("messages", [])
-                result.update["messages"] = [start_message] + existing_messages + [completion_message]
-                return result
-            else:
-                # If it's a string result, wrap it in a Command
-                return Command(
-                    update={
-                        "messages": [
-                            start_message,
-                            ToolMessage(str(result), tool_call_id=tool_call_id),
-                            completion_message
-                        ]
-                    }
-                )
-                
-        except Exception as e:
-            # Mark subagent as error
-            subagent_tracker.error_subagent(subagent_id, str(e))
-            
-            # Create error event
-            error_event = subagent_tracker.create_subagent_event(
-                "subagent_error", subagent_id, subagent_type, description, "error"
-            )
-            
-            # Add system message about error
-            error_message = SystemMessage(
-                content=f"❌ **Subagent Error**: {subagent_type}\n"
-                       f"**ID**: {subagent_id}\n"
-                       f"**Error**: {str(e)}\n"
-                       f"**Event Data**: {json.dumps(error_event, indent=2)}"
-            )
-            
-            return Command(
-                update={
-                    "messages": [
-                        start_message,
-                        ToolMessage(f"Error in subagent {subagent_type}: {str(e)}", tool_call_id=tool_call_id),
-                        error_message
-                    ]
+            result = original_task_tool.invoke(
+                {
+                    "description": description,
+                    "subagent_type": subagent_type,
+                    "state": state,
+                    "tool_call_id": tool_call_id,
                 }
             )
-    
+            resume_pending = isinstance(result, Command) and getattr(
+                result, "resume", None
+            )
+
+            if resume_pending:
+                completion_message: Optional[SystemMessage] = None
+                fallback_content = (
+                    "Subagent acknowledged the task and is still running."
+                    " Await further updates."
+                )
+            else:
+                completion_message = _complete_tracking(
+                    subagent_id, subagent_type, description, result
+                )
+                fallback_content = "Subagent completed without additional output."
+
+            return _handle_success(
+                result,
+                start_message,
+                completion_message,
+                tool_call_id,
+                fallback_content,
+            )
+        except Exception as error:  # pragma: no cover - surfaces to UI
+            return _handle_error(
+                error,
+                start_message,
+                subagent_id,
+                subagent_type,
+                description,
+                tool_call_id,
+            )
+
     return enhanced_task
 
 

@@ -24,8 +24,5 @@ def create_technical_research_agent() -> SubAgent:
         name="technical-research",
         description="Technical documentation, API research, and developer-focused analysis", 
         prompt=TECHNICAL_RESEARCH_PROMPT,
-        tools=[
-            "perplexity_reasoning_search",
-            "perplexity_focused_research"
-        ]
+        # tools=[]  # Let subagent inherit tools from main agent to avoid KeyError
     )

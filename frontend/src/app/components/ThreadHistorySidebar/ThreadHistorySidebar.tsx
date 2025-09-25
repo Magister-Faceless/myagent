@@ -4,14 +4,14 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, X, Trash2 } from "lucide-react";
-import { createClient } from "@/lib/client";
+import { createClientForAgent } from "@/lib/client";
 import { useAuthContext } from "@/providers/Auth";
-import { getDeployment } from "@/lib/environment/deployments";
-import type { Thread } from "../../types/types";
+import type { Thread, Agent } from "../../types/types";
 import styles from "./ThreadHistorySidebar.module.scss";
 import { extractStringFromMessageContent } from "../../utils/utils";
 
 interface ThreadHistorySidebarProps {
+  agent: Agent;
   open: boolean;
   setOpen: (open: boolean) => void;
   currentThreadId: string | null;
@@ -19,16 +19,15 @@ interface ThreadHistorySidebarProps {
 }
 
 export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
-  ({ open, setOpen, currentThreadId, onThreadSelect }) => {
+  ({ agent, open, setOpen, currentThreadId, onThreadSelect }) => {
     const [threads, setThreads] = useState<Thread[]>([]);
     const [isLoadingThreadHistory, setIsLoadingThreadHistory] = useState(true);
     const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
     const { session } = useAuthContext();
-    const deployment = useMemo(() => getDeployment(), []);
 
     const handleDeleteThread = useCallback(async (threadId: string, event: React.MouseEvent) => {
       event.stopPropagation();
-      if (!deployment?.deploymentUrl || !session?.accessToken) return;
+      if (!agent?.id || !session?.accessToken) return;
       
       if (!window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
         return;
@@ -36,7 +35,7 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
       
       setDeletingThreadId(threadId);
       try {
-        const client = createClient(session.accessToken);
+        const client = createClientForAgent(session.accessToken, agent.id);
         await client.threads.delete(threadId);
         // Remove the thread from the local state
         setThreads(prevThreads => prevThreads.filter(t => t.id !== threadId));
@@ -46,13 +45,13 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
       } finally {
         setDeletingThreadId(null);
       }
-    }, [deployment?.deploymentUrl, session?.accessToken]);
+    }, [agent?.id, session?.accessToken]);
 
     const fetchThreads = useCallback(async () => {
-      if (!deployment?.deploymentUrl || !session?.accessToken) return;
+      if (!agent?.id || !session?.accessToken) return;
       setIsLoadingThreadHistory(true);
       try {
-        const client = createClient(session.accessToken);
+        const client = createClientForAgent(session.accessToken, agent.id);
         const response = await client.threads.search({
           limit: 30,
           sortBy: "created_at",
@@ -94,7 +93,7 @@ export const ThreadHistorySidebar = React.memo<ThreadHistorySidebarProps>(
       } finally {
         setIsLoadingThreadHistory(false);
       }
-    }, [deployment?.deploymentUrl, session?.accessToken]);
+    }, [agent?.id, session?.accessToken]);
 
     useEffect(() => {
       fetchThreads();

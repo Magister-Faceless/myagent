@@ -14,13 +14,14 @@ import { Send, Bot, LoaderCircle, SquarePen, History, X } from "lucide-react";
 import { ChatMessage } from "../ChatMessage/ChatMessage";
 import { ThreadHistorySidebar } from "../ThreadHistorySidebar/ThreadHistorySidebar";
 import { ActiveSubAgentsPanel } from "../ActiveSubAgentsPanel/ActiveSubAgentsPanel";
-import type { SubAgent, TodoItem, ToolCall } from "../../types/types";
+import type { SubAgent, TodoItem, ToolCall, Agent } from "../../types/types";
 import { useChat } from "../../hooks/useChat";
 import styles from "./ChatInterface.module.scss";
 import { Message } from "@langchain/langgraph-sdk";
 import { extractStringFromMessageContent } from "../../utils/utils";
 
 interface ChatInterfaceProps {
+  agent: Agent;
   threadId: string | null;
   selectedSubAgent: SubAgent | null;
   setThreadId: (
@@ -35,6 +36,7 @@ interface ChatInterfaceProps {
 
 export const ChatInterface = React.memo<ChatInterfaceProps>(
   ({
+    agent,
     threadId,
     selectedSubAgent,
     setThreadId,
@@ -50,6 +52,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const { messages, isLoading, sendMessage, stopStream } = useChat(
+      agent,
       threadId,
       setThreadId,
       onTodosUpdate,
@@ -201,7 +204,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <Bot className={styles.logo} />
-            <h1 className={styles.title}>MyAgents</h1>
+            <h1 className={styles.title}>{agent.name}</h1>
           </div>
           <div className={styles.headerRight}>
             <Button
@@ -219,6 +222,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
         </div>
         <div className={styles.content}>
           <ThreadHistorySidebar
+            agent={agent}
             open={isThreadHistoryOpen}
             setOpen={setIsThreadHistoryOpen}
             currentThreadId={threadId}

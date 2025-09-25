@@ -7,8 +7,8 @@ DeepAgents Backend Development Rules:
 Every time developing the backend and making changes to files or folders in C:\Users\netfl\OneDrive\Desktop\myagents\backend, you must always follow these rules:
 
 - Source of truth
-  - Always follow the deepagents guideline in [backend/deepagents.README.md](cci:7://file:///c:/Users/netfl/OneDrive/Desktop/myagents/backend/deepagents.README.md:0:0-0:0).
-  - Do not modify source files under `backend/src/deepagents/` (framework internals).
+  - Always follow the deepagents guideline in C:\Users\netfl\OneDrive\Desktop\myagents\backend\deepagentsV1.1.README.md which is the guideline for deepagents version 1.1 which has replaced the original deepagents framework in: [backend/deepagents.README.md](cci:7://file:///c:/Users/netfl/OneDrive/Desktop/myagents/backend/deepagents.README.md:0:0-0:0). However, if there are errors which are likely related to the underlying deepagents framework, then always compare these files as an initial step to debugging as there may be some bugs introduced when upgrading to version 1.1 which have not been fixed yet. 
+  - Do not modify source files under `backend/src/deepagents/` (framework internals) unless the task is specifically to modify the underlying source code.
   - Keep imports at the top of files and follow the framework’s patterns.
 
 - Project structure and locations
@@ -89,4 +89,3 @@ Every time developing the backend and making changes to files or folders in C:\U
   - [create_deep_agent(...)](cci:1://file:///c:/Users/netfl/OneDrive/Desktop/myagents/backend/src/deepagents/graph.py:129:0-183:5) usage confirmed; built-ins leveraged; `MAIN_AGENT_INSTRUCTIONS` stays concise.
   - `langgraph.json` updated if the main agent path changed.
   - No edits to `backend/src/deepagents/`.
-

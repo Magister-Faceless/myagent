@@ -1,13 +1,6 @@
-@use "./styles/variables" as *;
+# src/app/page.module.scss
 
-.container {
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  background-color: var(--color-surface);
-  overflow: hidden;
-}
-
+@@ -11,6 +11,20 @@
 .mainContent {
   flex: 1;
   display: flex;

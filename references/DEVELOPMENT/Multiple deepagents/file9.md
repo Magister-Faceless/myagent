@@ -1,14 +1,20 @@
+# src/app/page.tsx
+
+@@ -1,96 +1,214 @@
 "use client";
 
+import React, { useState, useCallback, useEffect } from "react";
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useQueryState } from "nuqs";
 import { ChatInterface } from "./components/ChatInterface/ChatInterface";
 import { TasksFilesSidebar } from "./components/TasksFilesSidebar/TasksFilesSidebar";
 import { SubAgentPanel } from "./components/SubAgentPanel/SubAgentPanel";
 import { FileViewDialog } from "./components/FileViewDialog/FileViewDialog";
+import { createClient } from "@/lib/client";
 import { AgentSelector } from "./components/AgentSelector/AgentSelector";
 import { createClientForAgent } from "@/lib/client";
 import { useAuthContext } from "@/providers/Auth";
+import type { SubAgent, FileItem, TodoItem } from "./types/types";
 import { AVAILABLE_AGENTS, getDefaultAgent } from "@/lib/agents/config";
 import type {
   SubAgent,
@@ -22,10 +28,16 @@ import styles from "./page.module.scss";
 export default function HomePage() {
   const { session } = useAuthContext();
   const [threadId, setThreadId] = useQueryState("threadId");
+  const [selectedSubAgent, setSelectedSubAgent] = useState<SubAgent | null>(
+    null,
+  );
   const [currentAgent, setCurrentAgent] = useState<Agent>(getDefaultAgent());
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [files, setFiles] = useState<Record<string, string>>({});
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isLoadingThreadState, setIsLoadingThreadState] = useState(false);
+
 
   const [agentContexts, setAgentContexts] = useState<
     Record<string, AgentContext>
@@ -79,6 +91,7 @@ export default function HomePage() {
       });
 
       setCurrentAgent(newAgent);
+
       setSelectedFile(null);
     },
     [currentAgent.id, threadId, setThreadId, currentAgent]
@@ -111,12 +124,15 @@ export default function HomePage() {
   useEffect(() => {
     const fetchThreadState = async () => {
       if (!threadId || !session?.accessToken) {
+        setTodos([]);
+        setFiles({});
         updateCurrentContext({ todos: [], files: {} });
         setIsLoadingThreadState(false);
         return;
       }
       setIsLoadingThreadState(true);
       try {
+        const client = createClient(session.accessToken);
         const client = createClientForAgent(
           session.accessToken,
           currentAgent.id
@@ -128,6 +144,8 @@ export default function HomePage() {
             todos?: TodoItem[];
             files?: Record<string, string>;
           };
+          setTodos(currentState.todos || []);
+          setFiles(currentState.files || {});
           updateCurrentContext({
             todos: currentState.todos || [],
             files: currentState.files || {},
@@ -135,16 +153,23 @@ export default function HomePage() {
         }
       } catch (error) {
         console.error("Failed to fetch thread state:", error);
+        setTodos([]);
+        setFiles({});
         updateCurrentContext({ todos: [], files: {} });
       } finally {
         setIsLoadingThreadState(false);
       }
     };
     fetchThreadState();
+  }, [threadId, session?.accessToken]);
   }, [threadId, session?.accessToken, currentAgent.id, updateCurrentContext]);
 
   const handleNewThread = useCallback(() => {
     setThreadId(null);
+    setSelectedSubAgent(null);
+    setTodos([]);
+    setFiles({});
+  }, [setThreadId]);
     updateCurrentContext({
       threadId: null,
       selectedSubAgent: null,
@@ -177,6 +202,8 @@ export default function HomePage() {
   return (
     <div className={styles.container}>
       <TasksFilesSidebar
+        todos={todos}
+        files={files}
         todos={currentContext.todos}
         files={currentContext.files}
         onFileClick={setSelectedFile}
@@ -195,27 +222,25 @@ export default function HomePage() {
         <ChatInterface
           agent={currentAgent}
           threadId={threadId}
+          selectedSubAgent={selectedSubAgent}
           selectedSubAgent={currentContext.selectedSubAgent}
           setThreadId={setThreadId}
+          onSelectSubAgent={setSelectedSubAgent}
+          onTodosUpdate={setTodos}
+          onFilesUpdate={setFiles}
           onSelectSubAgent={handleSelectSubAgent}
           onTodosUpdate={handleTodosUpdate}
           onFilesUpdate={handleFilesUpdate}
           onNewThread={handleNewThread}
           isLoadingThreadState={isLoadingThreadState}
         />
+        {selectedSubAgent && (
         {currentContext.selectedSubAgent && (
           <SubAgentPanel
+            subAgent={selectedSubAgent}
+            onClose={() => setSelectedSubAgent(null)}
             subAgent={currentContext.selectedSubAgent}
             onClose={() => updateCurrentContext({ selectedSubAgent: null })}
           />
         )}
       </div>
-      {selectedFile && (
-        <FileViewDialog
-          file={selectedFile}
-          onClose={() => setSelectedFile(null)}
-        />
-      )}
-    </div>
-  );
-}

@@ -24,8 +24,5 @@ def create_market_analysis_agent() -> SubAgent:
         name="market-analysis", 
         description="Specialized in market trends, competitive analysis, and business intelligence",
         prompt=MARKET_ANALYSIS_PROMPT,
-        tools=[
-            "perplexity_reasoning_search",
-            "perplexity_focused_research"
-        ]
+        # tools=[]  # Let subagent inherit tools from main agent to avoid KeyError
     )

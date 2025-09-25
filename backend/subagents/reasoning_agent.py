@@ -19,6 +19,6 @@ def create_reasoning_subagent():
         
         This agent can filter search results by domain, publication date, last updated date, and recency.""",
         "prompt": REASONING_SUBAGENT_PROMPT,
-        "tools": ["perplexity_reasoning_search", "perplexity_focused_research"],
+        # "tools": [],  # Let subagent inherit tools from main agent to avoid KeyError
         "model": get_deep_research_model(),
     }

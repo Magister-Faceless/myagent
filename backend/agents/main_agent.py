@@ -46,6 +46,9 @@ from config.settings import get_settings
 # Import model configuration
 from models import get_default_model
 
+# Utilities
+from utils.subagent_tracking import enable_subagent_tracking
+
 
 def create_main_agent():
     """Create and configure the main deep agent."""
@@ -66,55 +69,57 @@ def create_main_agent():
     model = get_default_model()
     
     # Create the main deep agent with human-in-the-loop for high-cost operations
-    agent = create_deep_agent(
-        tools=[
-            # General search tools
-            tavily_search, 
-            tavily_qna_search, 
-            # Perplexity reasoning tools
-            perplexity_reasoning_search, 
-            perplexity_focused_research,
-            # Specialized research strategy tools
-            academic_search,
-            technical_search,
-            market_research,
-            deep_research,
-            # Elite sonar deep research tool
-            sonar_deep_research,
-            # CORE API tools for scientific research
-            search_works,
-            scroll_export_works,
-            get_work_by_id,
-            batch_get_works_by_ids,
-            aggregate_works,
-            time_trend_analysis,
-            search_journals,
-            get_journal_by_id,
-            analyze_top_venues_for_topic,
-            # Utility tools for task and subagent management
-            get_active_subagents,
-            get_subagent_summary
-        ],
-        instructions=MAIN_AGENT_INSTRUCTIONS,
-        subagents=[
-            general_subagent, 
-            reasoning_subagent,
-            deep_research_subagent,
-            market_analysis_subagent,
-            technical_research_subagent
-        ] + core_research_subagents,
-        model=model,
-        # Configure human-in-the-loop for task spawning when using sonar-deep-research agent
-        interrupt_config={
-            "task": {
-                "allow_ignore": False,
-                "allow_respond": True,
-                "allow_edit": True,
-                "allow_accept": True,
-            }
-        }
-    ).with_config({"recursion_limit": settings["recursion_limit"]})
-    
+    with enable_subagent_tracking():
+        agent = create_deep_agent(
+            tools=[
+                # General search tools
+                tavily_search,
+                tavily_qna_search,
+                # Perplexity reasoning tools
+                perplexity_reasoning_search,
+                perplexity_focused_research,
+                # Specialized research strategy tools
+                academic_search,
+                technical_search,
+                market_research,
+                deep_research,
+                # Elite sonar deep research tool
+                sonar_deep_research,
+                # CORE API tools for scientific research
+                search_works,
+                scroll_export_works,
+                get_work_by_id,
+                batch_get_works_by_ids,
+                aggregate_works,
+                time_trend_analysis,
+                search_journals,
+                get_journal_by_id,
+                analyze_top_venues_for_topic,
+                # Utility tools for task and subagent management
+                get_active_subagents,
+                get_subagent_summary,
+            ],
+            instructions=MAIN_AGENT_INSTRUCTIONS,
+            subagents=[
+                general_subagent,
+                reasoning_subagent,
+                deep_research_subagent,
+                market_analysis_subagent,
+                technical_research_subagent,
+            ]
+            + core_research_subagents,
+            model=model,
+            # Configure human-in-the-loop for task spawning when using sonar-deep-research agent
+            interrupt_config={
+                "sonar_deep_research": {
+                    "allow_ignore": False,
+                    "allow_respond": True,
+                    "allow_edit": True,
+                    "allow_accept": True,
+                }
+            },
+        ).with_config({"recursion_limit": settings["recursion_limit"]})
+
     return agent
 
 
