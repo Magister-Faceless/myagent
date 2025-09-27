@@ -28,6 +28,9 @@ from config.settings import get_settings
 # Import model configuration
 from models import get_default_model
 
+# Import checkpointer configuration
+from config.checkpointer import get_default_checkpointer
+
 
 def create_code_assistant():
     """Create and configure the coding-specialized deep agent."""
@@ -41,6 +44,9 @@ def create_code_assistant():
     
     # Get the default model with fallback
     model = get_default_model()
+    
+    # Get persistent checkpointer for state storage
+    checkpointer = get_default_checkpointer()
     
     # Create the coding deep agent with development-optimized tools
     agent = create_deep_agent(
@@ -63,6 +69,7 @@ def create_code_assistant():
             technical_research_subagent  # Primary subagent for coding tasks
         ],
         model=model,
+        checkpointer=checkpointer,
         # Configure for coding workflow
         interrupt_config={
             "task": {

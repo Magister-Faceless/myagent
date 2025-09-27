@@ -46,6 +46,9 @@ from config.settings import get_settings
 # Import model configuration
 from models import get_default_model
 
+# Import checkpointer configuration
+from config.checkpointer import get_default_checkpointer
+
 # Utilities
 from utils.subagent_tracking import enable_subagent_tracking
 
@@ -67,6 +70,9 @@ def create_main_agent():
     
     # Get the default model with fallback
     model = get_default_model()
+    
+    # Get persistent checkpointer for state storage
+    checkpointer = get_default_checkpointer()
     
     # Create the main deep agent with human-in-the-loop for high-cost operations
     with enable_subagent_tracking():
@@ -109,6 +115,7 @@ def create_main_agent():
             ]
             + core_research_subagents,
             model=model,
+            checkpointer=checkpointer,
             # Configure human-in-the-loop for task spawning when using sonar-deep-research agent
             interrupt_config={
                 "sonar_deep_research": {

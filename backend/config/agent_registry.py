@@ -25,6 +25,7 @@ class AgentType(Enum):
     TECHNICAL = "technical"
     MEDICAL_RESEARCH = "medical_research"
     PYTHON_CODING = "python_coding"
+    LITERATURE_REVIEW = "literature_review"
 
 
 @dataclass
@@ -144,6 +145,30 @@ class AgentRegistry:
                 color="#F59E0B",
                 icon="✍️",
                 instructions="You are a content creation specialist focused on writing and creative tasks.",
+                enabled=True
+            ),
+            AgentConfig(
+                id="literature-review",
+                name="Literature Review",
+                description="Specialized agent for systematic literature reviews and research synthesis",
+                agent_type=AgentType.LITERATURE_REVIEW,
+                color="#6366F1",
+                icon="📚",
+                instructions="You are a literature review specialist focused on systematic reviews and research synthesis.",
+                tools=[
+                    "search_works",
+                    "get_work_by_id", 
+                    "aggregate_works",
+                    "extract_paper_metadata",
+                    "generate_prisma_diagram",
+                    "export_citations",
+                    "quality_assessment"
+                ],
+                subagents=[
+                    "literature_screener",
+                    "data_extractor",
+                    "synthesis_engine"
+                ],
                 enabled=True
             )
         ]

@@ -40,21 +40,21 @@ class ModelFactory:
     DEFAULT_MODELS = {
         # Primary chat models (with fallback hierarchy)
         "primary": ModelConfig(
-            name="x-ai/grok-3-mini",
+            name="x-ai/grok-4-fast",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
             api_key_env_var="OPENROUTER_API_KEY"
         ),
         "fallback-1": ModelConfig(
-            name="x-ai/grok-4-fast:free",
+            name="google/gemini-2.5-flash-preview-09-2025",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
             api_key_env_var="OPENROUTER_API_KEY"
         ),
         "fallback-2": ModelConfig(
-            name="deepseek/deepseek-chat-v3.1",
+            name="qwen/qwen3-vl-235b-a22b-thinking",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
@@ -63,14 +63,14 @@ class ModelFactory:
         
         # Vision models
         "vision-primary": ModelConfig(
-            name="opengvlab/internvl3-78b",
+            name="x-ai/grok-4-fast",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
             api_key_env_var="OPENROUTER_API_KEY"
         ),
         "vision-fallback": ModelConfig(
-            name="deepcogito/cogito-v2-preview-llama-109b-moe",
+            name="google/gemini-2.5-flash-preview-09-2025",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
@@ -79,11 +79,11 @@ class ModelFactory:
         
         # Deep research and analysis models
         "deep-research": ModelConfig(
-            name="alibaba/tongyi-deepresearch-30b-a3b",
-            provider=ModelProvider.OPENROUTER,
+            name="sonar-deep-research",
+            provider=ModelProvider.PERPLEXITY,
             temperature=0.1,
-            base_url="https://openrouter.ai/api/v1",
-            api_key_env_var="OPENROUTER_API_KEY"
+            base_url="https://api.perplexity.ai",
+            api_key_env_var="PERPLEXITY_API_KEY"
         ),
         
         # Perplexity models for web search and research

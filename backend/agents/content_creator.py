@@ -26,6 +26,9 @@ from config.settings import get_settings
 # Import model configuration
 from models import get_default_model
 
+# Import checkpointer configuration
+from config.checkpointer import get_default_checkpointer
+
 
 def create_content_creator():
     """Create and configure the content creation-specialized deep agent."""
@@ -38,6 +41,9 @@ def create_content_creator():
     
     # Get the default model with fallback
     model = get_default_model()
+    
+    # Get persistent checkpointer for state storage
+    checkpointer = get_default_checkpointer()
     
     # Create the creative deep agent with content-optimized tools
     agent = create_deep_agent(
@@ -57,6 +63,7 @@ def create_content_creator():
             reasoning_subagent  # Primary subagents for creative tasks
         ],
         model=model,
+        checkpointer=checkpointer,
         # Configure for creative workflow
         interrupt_config={
             "task": {

@@ -18,7 +18,8 @@ dependencies = [
     "uvicorn>=0.24.0",
     "python-multipart>=0.0.6",
     "aiohttp>=3.9.0",
-    "langgraph-cli[inmem]>=0.0.19"
+    "langgraph-cli[inmem]>=0.0.19",
+    "langgraph-checkpoint-sqlite>=2.0.0"
 ]
 
 [build-system]

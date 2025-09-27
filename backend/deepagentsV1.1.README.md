@@ -961,6 +961,38 @@ specialized_medical_agent = create_specialized_medical_agent()
 
 ## 🧱 Step-by-Step: Adding Another Agent
 
+### **🚨 CRITICAL: File Persistence Requirements**
+
+**ALL agents, subagents, and tools MUST include persistent checkpointer support for file persistence to work correctly.**
+
+#### **For ALL Agent Creation Methods:**
+
+**✅ MANDATORY: Every agent MUST use persistent checkpointer**
+```python
+from config.checkpointer import get_default_checkpointer
+
+# For create_deep_agent() calls
+agent = create_deep_agent(
+    tools=tools,
+    instructions=instructions,
+    subagents=subagents,
+    model=model,
+    checkpointer=get_default_checkpointer(),  # ← REQUIRED FOR FILE PERSISTENCE
+    # ... other parameters
+)
+
+# For agent factory (automatic)
+agent = create_agent_by_id("agent-id")  # ← Checkpointer added automatically
+```
+
+**⚠️ WITHOUT CHECKPOINTER: Files created by agents, subagents, and tools will disappear on server restart!**
+
+**🔧 Why This Is Critical:**
+- **Main agents**: Need checkpointer to persist files they create directly
+- **Subagents**: Inherit checkpointer from main agent automatically (framework handles this)
+- **Tools with large outputs**: Use `@handle_large_response` decorator - files persist via shared state
+- **Built-in file tools**: `write_file`, `edit_file`, `read_file`, `ls` all use persistent state
+
 ### **For Dynamic Configuration Approach:**
 
 1. **Decide on new capabilities**
@@ -997,6 +1029,8 @@ specialized_medical_agent = create_specialized_medical_agent()
 
 2. **Create agent file**
    - Create new file in `backend/agents/` (e.g., `medical_research_agent.py`)
+   - **✅ MANDATORY**: Import checkpointer: `from config.checkpointer import get_default_checkpointer`
+   - **✅ MANDATORY**: Add checkpointer to `create_deep_agent()`: `checkpointer=get_default_checkpointer()`
    - Implement `create_[agent_name]_agent()` function
    - Explicitly import and configure all tools, subagents, and settings
 
@@ -1043,6 +1077,34 @@ specialized_medical_agent = create_specialized_medical_agent()
 ---
 
 ## ✅ **Troubleshooting & Tips**
+
+### **File Persistence Issues**
+
+**❌ Problem**: Files disappear after server restart
+**✅ Solution**: Ensure checkpointer is configured:
+```python
+# Check if your agent has checkpointer
+from config.checkpointer import get_default_checkpointer
+agent = create_deep_agent(..., checkpointer=get_default_checkpointer())
+```
+
+**❌ Problem**: Subagent files don't persist
+**✅ Solution**: Framework automatically propagates checkpointer to subagents (v1.1+)
+
+**❌ Problem**: Tool outputs don't persist
+**✅ Solution**: Use `@handle_large_response` decorator for tools that write files:
+```python
+from deepagents.decorators import handle_large_response
+
+@tool
+@handle_large_response  # Automatically writes large outputs to persistent files
+def my_research_tool(query: str) -> str:
+    # Tool logic here
+    return large_result
+```
+
+**❌ Problem**: Database file not created
+**✅ Solution**: Run installation script: `python backend/install_persistence.py`
 
 ### **Common Issues**
 

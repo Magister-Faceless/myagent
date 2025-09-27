@@ -22,6 +22,7 @@ from config.prompts import (
     PYTHON_CODING_INSTRUCTIONS
 )
 from config.settings import get_settings
+from config.checkpointer import get_default_checkpointer
 from models import get_default_model
 
 
@@ -299,12 +300,16 @@ class AgentFactory:
                 # TODO: Implement custom model configuration
                 pass
             
+            # Get persistent checkpointer for state storage
+            checkpointer = get_default_checkpointer()
+            
             # Create the agent
             agent = create_deep_agent(
                 tools=tools,
                 instructions=instructions,
                 subagents=subagents,
                 model=model,
+                checkpointer=checkpointer,
                 builtin_tools=config.builtin_tools,
                 interrupt_config=config.interrupt_config,
                 main_agent_tools=config.main_agent_tools,

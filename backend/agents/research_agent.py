@@ -47,6 +47,9 @@ from config.settings import get_settings
 # Import model configuration
 from models import get_default_model
 
+# Import checkpointer configuration
+from config.checkpointer import get_default_checkpointer
+
 
 def create_research_agent():
     """Create and configure the research-specialized deep agent."""
@@ -64,6 +67,9 @@ def create_research_agent():
     
     # Get the default model with fallback
     model = get_default_model()
+    
+    # Get persistent checkpointer for state storage
+    checkpointer = get_default_checkpointer()
     
     # Create the research deep agent with full research tools (subagent tool issue fixed)
     agent = create_deep_agent(
@@ -102,6 +108,7 @@ def create_research_agent():
             technical_research_subagent
         ] + core_research_subagents,  # All CORE research subagents included
         model=model,
+        checkpointer=checkpointer,
         # Configure human-in-the-loop for the highest-cost research tool
         interrupt_config={
             "sonar_deep_research": {
