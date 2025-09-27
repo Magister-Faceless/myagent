@@ -6,7 +6,8 @@
     "main-agent": "agents.main_agent:agent",
     "research-agent": "agents.research_agent:agent",
     "code-assistant": "agents.code_assistant:agent",
-    "content-creator": "agents.content_creator:agent"
+    "content-creator": "agents.content_creator:agent",
+    "literature-review": "agents.literature_review:agent"
   },
   "env": ".env"
 }

@@ -1,8 +1,8 @@
 """
 Literature Screener Subagent - DeepAgents v1.1 Implementation
 
-Handles the screening phase of systematic literature reviews following
-the deepagents SubAgent pattern.
+PRISMA-compliant paper screening with CORE API integration and Grok-4-Fast 
+vision capabilities for full-text analysis including images, tables, and figures.
 """
 
 from src.deepagents.sub_agent import SubAgent
@@ -13,6 +13,7 @@ from datetime import datetime
 
 # Import prompts
 from config.prompts import LITERATURE_SCREENER_PROMPT
+from models import get_default_model
 
 
 @tool
@@ -151,14 +152,24 @@ def generate_prisma_data(screening_results: List[Dict[str, Any]]) -> Dict[str, A
         }
 
 
-def create_literature_screener() -> SubAgent:
-    """Create a literature screener subagent following deepagents v1.1 pattern."""
-    return SubAgent(
-        name="literature_screener",
-        description="Screens papers using inclusion/exclusion criteria for systematic reviews",
-        prompt=LITERATURE_SCREENER_PROMPT,
-        tools=[
-            screen_papers,
-            generate_prisma_data,
-        ]
-    )
+def create_literature_screener():
+    """
+    Create literature screener subagent with Grok-4-Fast model.
+    
+    Uses Grok-4-Fast for PRISMA screening with vision analysis capabilities
+    for analyzing images, tables, and figures in papers.
+    """
+    
+    # Use default model (Grok-4-Fast) for screening and vision analysis
+    model = get_default_model()
+    
+    return {
+        "name": "literature_screener",
+        "description": "PRISMA-compliant screening with Grok-4-Fast vision analysis for images, tables, and figures",
+        "prompt": LITERATURE_SCREENER_PROMPT,
+        "tools": [
+            "screen_papers",
+            "generate_prisma_data",
+        ],
+        "model": model  # Use Grok-4-Fast for vision capabilities
+    }

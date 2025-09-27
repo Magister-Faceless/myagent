@@ -1,8 +1,8 @@
 """
 Synthesis Engine Subagent - DeepAgents v1.1 Implementation
 
-Handles the synthesis of findings from multiple research papers following
-the deepagents SubAgent pattern.
+Advanced evidence synthesis and comprehensive report generation using
+Perplexity Sonar Deep Research model for multi-step synthesis and citations.
 """
 
 from src.deepagents.sub_agent import SubAgent
@@ -14,6 +14,7 @@ from collections import defaultdict
 
 # Import prompts
 from config.prompts import SYNTHESIS_ENGINE_PROMPT
+from models.models import ModelFactory
 
 
 @tool
@@ -455,16 +456,26 @@ def _generate_html_report(
     return html
 
 
-def create_synthesis_engine() -> SubAgent:
-    """Create a synthesis engine subagent following deepagents v1.1 pattern."""
-    return SubAgent(
-        name="synthesis_engine",
-        description="Synthesizes findings from multiple research papers and identifies themes and gaps",
-        prompt=SYNTHESIS_ENGINE_PROMPT,
-        tools=[
-            identify_themes,
-            assess_evidence_strength,
-            identify_research_gaps,
-            generate_synthesis_report,
-        ]
-    )
+def create_synthesis_engine():
+    """
+    Create synthesis engine subagent with Perplexity Sonar Deep Research model.
+    
+    Uses specialized model for long-running synthesis, multi-paper analysis,
+    and comprehensive report generation with citations.
+    """
+    
+    # Use Perplexity Sonar Deep Research model for synthesis
+    sonar_model = ModelFactory.get_model("deep-research")
+    
+    return {
+        "name": "synthesis_engine",
+        "description": "Advanced evidence synthesis using Perplexity Sonar Deep Research for multi-step analysis and comprehensive reporting",
+        "prompt": SYNTHESIS_ENGINE_PROMPT,
+        "tools": [
+            "identify_themes",
+            "assess_evidence_strength",
+            "identify_research_gaps",
+            "generate_synthesis_report",
+        ],
+        "model": sonar_model  # Use Perplexity Sonar Deep Research
+    }

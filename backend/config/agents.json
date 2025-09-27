@@ -113,6 +113,43 @@
       "enabled": true,
       "created_at": null,
       "updated_at": null
+    },
+    {
+      "id": "literature-review",
+      "name": "Literature Review Agent",
+      "description": "Systematic literature review coordinator with human-in-the-loop safeguards",
+      "agent_type": "literature_review",
+      "color": "#6366F1",
+      "icon": "📚",
+      "instructions": "You are a literature review specialist who orchestrates planning, screening, analysis, and synthesis across dedicated subagents. Follow PRISMA principles, keep the user in the loop for key decisions, and deliver reproducible evidence summaries.",
+      "tools": [
+        "search_works",
+        "scroll_export_works",
+        "get_work_by_id",
+        "aggregate_works",
+        "extract_paper_metadata",
+        "generate_prisma_diagram",
+        "export_citations",
+        "quality_assessment"
+      ],
+      "subagents": [
+        "request_validator",
+        "planning_coordinator",
+        "literature_screener",
+        "content_analyzer",
+        "synthesis_engine"
+      ],
+      "model_config": null,
+      "recursion_limit": 100,
+      "interrupt_config": {
+        "planning_coordinator": true,
+        "synthesis_engine": true
+      },
+      "builtin_tools": null,
+      "main_agent_tools": null,
+      "enabled": true,
+      "created_at": null,
+      "updated_at": null
     }
   ]
 }

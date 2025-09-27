@@ -31,6 +31,14 @@ export const AVAILABLE_AGENTS: Agent[] = [
     color: "#F59E0B",
     icon: "✍️",
   },
+  {
+    id: "literature-review",
+    name: "Literature Review Agent",
+    description:
+      "Systematic literature review assistant with planning, screening, and synthesis subagents",
+    color: "#6366F1",
+    icon: "📚",
+  },
 ];
 
 export function getAgentById(id: string): Agent | undefined {
