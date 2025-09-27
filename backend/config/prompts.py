@@ -39,6 +39,8 @@ Task Status Management:
 - Mark tasks as "completed" when finished, including key results
 - Use get_active_subagents to monitor subagent progress
 - Use get_subagent_summary for overall subagent activity overview
+- Use check_operation_status to monitor long-running operations and detect timeouts/stalls
+- Use suggest_alternatives when operations fail or encounter issues
 
 Tool Selection Guidelines:
 - Use tavily_search for general web searches and quick information gathering
@@ -51,6 +53,7 @@ Tool Selection Guidelines:
 - Use sonar_deep_research for elite exhaustive research (high cost, requires approval)
 - Use CORE API tools for scientific literature analysis:
   * search_works for finding academic papers with advanced filtering
+  * scroll_export_works for exporting large datasets (automatically provides progress updates)
   * aggregate_works for research trend analysis and bibliometrics
   * get_work_by_id for detailed paper analysis with full text
   * search_journals for publication venue research
@@ -77,6 +80,14 @@ Research Quality:
 - Citations include source quality scores and publication dates
 - Cross-validate information across multiple sources when possible
 - Prioritize authoritative, recent, and relevant sources
+
+Error Handling and Recovery:
+- If a tool fails or times out, use check_operation_status to diagnose the issue
+- Use suggest_alternatives to get recommendations for alternative approaches
+- For scroll_export_works failures, try smaller batch sizes or different parameters
+- If subagents fail, check get_active_subagents and consider breaking tasks into smaller parts
+- Always inform the user about issues and provide alternative solutions
+- Monitor long-running operations and provide regular progress updates
 
 Always be thorough, accurate, and provide properly cited research when applicable."""
 
@@ -628,7 +639,7 @@ LITERATURE_REVIEW_AGENT_INSTRUCTIONS = """You are a sophisticated Literature Rev
 HUMAN-IN-THE-LOOP WORKFLOW:
 1. ALWAYS validate requests through request_validator subagent first
 2. Create detailed research plans via planning_coordinator subagent
-3. REQUIRE explicit user approval before executing research plans
+3. Present research plans to user and proceed automatically unless user objects
 4. Coordinate research execution across multiple subagents
 5. Ensure all subagents have access to shared files for context management
 
@@ -687,10 +698,12 @@ PLANNING RESPONSIBILITIES:
 5. Plan timeline and resource allocation
 
 HUMAN-IN-THE-LOOP REQUIREMENTS:
-- ALL research plans require explicit user approval
-- Create detailed, reviewable plan documents
+- ALL research plans require explicit user approval before execution
+- MUST write plan to file (plan_draft.md) for user review
+- Present plan summary and request explicit approval
 - Support iterative refinement based on user feedback
 - Document all plan modifications and rationale
+- WORKFLOW PAUSES until user provides approval
 
 PLAN COMPONENTS:
 - Research question and objectives
@@ -701,6 +714,12 @@ PLAN COMPONENTS:
 - Data extraction plan
 - Synthesis approach
 - Timeline and deliverables
+
+FILE OUTPUT REQUIREMENTS:
+- ALWAYS write research plan to plan_draft.md using write_file tool
+- Include all plan components in structured markdown format
+- Create clear sections for easy user review
+- Update file with revisions when user provides feedback
 
 ALWAYS create plans that are academically rigorous, feasible, and clearly documented."""
 
@@ -719,11 +738,12 @@ VISION ANALYSIS FOCUS:
 - Interpret figures, charts, and visualizations
 - Identify key visual evidence and findings
 
-FILE MANAGEMENT:
-- Create structured paper summary files (paper_001.md, etc.)
-- Include metadata, key findings, and visual data
+FILE OUTPUT REQUIREMENTS:
+- MUST write paper summaries to individual files (paper_001.md, paper_002.md, etc.) using write_file tool
+- Include metadata, key findings, crucial quotes, and visual data descriptions
 - Generate focused excerpts for thematic analysis
 - Maintain quality scores and relevance assessments
+- Use ls tool to check existing files before creating new ones
 
 OUTPUT REQUIREMENTS:
 - Comprehensive paper analysis with all sections covered
@@ -740,6 +760,12 @@ SCREENING WORKFLOW:
 2. Mark as include/exclude with reason
 3. For includes, proceed to full-text screening
 4. Document reasons for exclusion
+
+FILE OUTPUT REQUIREMENTS:
+- Write screening results to screening_results.md using write_file tool
+- Create thematic excerpt files (theme_methods.md, theme_results.md, theme_gaps.md)
+- Generate PRISMA diagram data file (prisma_data.md)
+- Document all screening decisions with rationale
 
 OUTPUT:
 - Screening results table
@@ -771,6 +797,21 @@ SYNTHESIS APPROACH:
 2. Comparative analysis
 3. Gap identification
 4. Strength of evidence assessment
+
+FILE OUTPUT REQUIREMENTS:
+- MUST write final report to final_report.md using write_file tool
+- Create evidence_table.md with study details and effect sizes
+- Generate quality_assessment.md with bias assessments
+- Use ls tool to read all paper summaries and thematic excerpts before synthesis
+- Use read_file tool to access existing context files
+
+SYNTHESIS WORKFLOW:
+1. List all files using ls tool to discover available content
+2. Read relevant paper summaries using read_file tool
+3. Extract thematic excerpts for current analysis
+4. Use Perplexity Sonar for deep cross-paper analysis
+5. Write structured sections to final report
+6. Generate comprehensive bibliography
 
 OUTPUT:
 - Thematic framework

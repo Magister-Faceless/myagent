@@ -198,7 +198,7 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
               variant="ghost"
               size="icon"
               onClick={handleNewThread}
-              disabled={!hasMessages}
+              disabled={isLoadingThreadState}
             >
               <SquarePen size={20} />
             </Button>
@@ -206,37 +206,37 @@ export const ChatInterface = React.memo<ChatInterfaceProps>(
         </div>
         <div className={styles.content}>
           <div className={styles.messagesContainer}>
-            {!hasMessages && !isLoading && !isLoadingThreadState && (
+            {isLoadingThreadState ? (
+              <div className={styles.threadLoadingState}>
+                <LoaderCircle className={styles.threadLoadingSpinner} />
+              </div>
+            ) : !hasMessages && !isLoading ? (
               <div className={styles.emptyState}>
                 <Bot size={48} className={styles.emptyIcon} />
                 <h2>Start a conversation or select a thread from history</h2>
               </div>
-            )}
-            {isLoadingThreadState && (
-              <div className={styles.threadLoadingState}>
-                <LoaderCircle className={styles.threadLoadingSpinner} />
+            ) : (
+              <div className={styles.messagesList}>
+                <ActiveSubAgentsPanel />
+                {processedMessages.map((data) => (
+                  <ChatMessage
+                    key={data.message.id}
+                    message={data.message}
+                    toolCalls={data.toolCalls}
+                    showAvatar={data.showAvatar}
+                    onSelectSubAgent={onSelectSubAgent}
+                    selectedSubAgent={selectedSubAgent}
+                  />
+                ))}
+                {isLoading && (
+                  <div className={styles.loadingMessage}>
+                    <LoaderCircle className={styles.spinner} />
+                    <span>Working...</span>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
             )}
-            <div className={styles.messagesList}>
-              <ActiveSubAgentsPanel />
-              {processedMessages.map((data) => (
-                <ChatMessage
-                  key={data.message.id}
-                  message={data.message}
-                  toolCalls={data.toolCalls}
-                  showAvatar={data.showAvatar}
-                  onSelectSubAgent={onSelectSubAgent}
-                  selectedSubAgent={selectedSubAgent}
-                />
-              ))}
-              {isLoading && (
-                <div className={styles.loadingMessage}>
-                  <LoaderCircle className={styles.spinner} />
-                  <span>Working...</span>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
           </div>
         </div>
         <form onSubmit={handleSubmit} className={styles.inputForm}>

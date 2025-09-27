@@ -6,7 +6,6 @@ vision capabilities for full-text analysis including images, tables, and figures
 """
 
 from src.deepagents.sub_agent import SubAgent
-from langchain_core.tools import tool
 from typing import Dict, List, Any
 import json
 from datetime import datetime
@@ -16,8 +15,7 @@ from config.prompts import LITERATURE_SCREENER_PROMPT
 from models import get_default_model
 
 
-@tool
-def screen_papers(
+def _screen_papers(
     papers: List[Dict[str, Any]], 
     inclusion_criteria: List[str],
     exclusion_criteria: List[str],
@@ -91,8 +89,7 @@ def screen_papers(
         }
 
 
-@tool
-def generate_prisma_data(screening_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _generate_prisma_data(screening_results: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Generate PRISMA flow diagram data from screening results.
     
     Args:
@@ -165,11 +162,11 @@ def create_literature_screener():
     
     return {
         "name": "literature_screener",
-        "description": "PRISMA-compliant screening with Grok-4-Fast vision analysis for images, tables, and figures",
+        "description": (
+            "PRISMA-compliant screening with Grok-4-Fast vision analysis for images, tables, and figures. "
+            "Handles screening workflows internally including PRISMA data generation and statistics."
+        ),
         "prompt": LITERATURE_SCREENER_PROMPT,
-        "tools": [
-            "screen_papers",
-            "generate_prisma_data",
-        ],
-        "model": model  # Use Grok-4-Fast for vision capabilities
+        # No external tools needed - subagent handles screening logic internally
+        "model": model,  # Use Grok-4-Fast for vision capabilities
     }

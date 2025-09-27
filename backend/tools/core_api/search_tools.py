@@ -6,10 +6,20 @@ import asyncio
 import aiohttp
 import csv
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Annotated
 from pathlib import Path
 
-from deepagents.tools import tool
+from langchain_core.tools import tool, InjectedToolCallId
+from langgraph.types import Command
+from langchain_core.messages import ToolMessage
+try:
+    from langgraph.prebuilt import InjectedState
+except ImportError:
+    # Fallback for newer versions
+    from typing import Any
+    InjectedState = Any
+
+from deepagents.state import DeepAgentState
 from deepagents.decorators import handle_large_response
 
 from .config import CORE_API_CONFIG, get_api_headers
@@ -161,15 +171,16 @@ async def search_works(
         }
 
 @tool(description="Export large search results from CORE API to structured files")
-@handle_large_response(max_length=50000)
 async def scroll_export_works(
     query: str,
     max_results: int = 1000,
     require_full_text: bool = False,
     date_range: Optional[Dict[str, str]] = None,
     document_types: Optional[List[str]] = None,
-    output_format: str = "csv"
-) -> Dict[str, Any]:
+    output_format: str = "csv",
+    state: Annotated[DeepAgentState, InjectedState] = None,
+    tool_call_id: Annotated[str, InjectedToolCallId] = None,
+) -> Command:
     """
     Export large datasets from CORE API using scroll/pagination
     
@@ -180,14 +191,15 @@ async def scroll_export_works(
         date_range: Dict with 'start_year' and 'end_year' keys
         document_types: List of document types to filter by
         output_format: Output format ('csv', 'json', 'md')
+        state: Agent state (injected automatically)
+        tool_call_id: Tool call ID (injected automatically)
         
     Returns:
-        dict: Export summary with file paths
-        
-    Note: This function uses @handle_large_response and will automatically
-          write results to files when the response exceeds 50K tokens.
+        Command: LangGraph command with file updates and progress messages
     """
     try:
+        # Initialize progress tracking
+        progress_messages = []
         all_results = []
         offset = 0
         batch_size = min(100, max_results)
@@ -199,10 +211,29 @@ async def scroll_export_works(
             extension=output_format
         )
         
+        # Send initial progress message
+        progress_messages.append(
+            ToolMessage(
+                content=f"🔍 Starting export of up to {max_results} results for query: {query[:100]}...",
+                tool_call_id=tool_call_id,
+                additional_kwargs={"progress": "started", "filename": filename}
+            )
+        )
+        
         while len(all_results) < max_results:
             # Calculate remaining results needed
             remaining = max_results - len(all_results)
             current_limit = min(batch_size, remaining)
+            
+            # Send progress update
+            if len(all_results) > 0 and len(all_results) % 200 == 0:
+                progress_messages.append(
+                    ToolMessage(
+                        content=f"📊 Progress: Retrieved {len(all_results)} results so far...",
+                        tool_call_id=tool_call_id,
+                        additional_kwargs={"progress": "ongoing", "count": len(all_results)}
+                    )
+                )
             
             # Search batch
             batch_result = await search_works(
@@ -214,11 +245,26 @@ async def scroll_export_works(
                 document_types=document_types
             )
             
-            if not batch_result["success"]:
+            if not batch_result.get("success", False):
+                error_msg = batch_result.get("error", "Unknown search error")
+                progress_messages.append(
+                    ToolMessage(
+                        content=f"❌ Search failed: {error_msg}",
+                        tool_call_id=tool_call_id,
+                        additional_kwargs={"error": True}
+                    )
+                )
                 break
             
-            batch_results = batch_result["results"]
+            batch_results = batch_result.get("results", [])
             if not batch_results:
+                progress_messages.append(
+                    ToolMessage(
+                        content=f"✅ No more results available. Retrieved {len(all_results)} total results.",
+                        tool_call_id=tool_call_id,
+                        additional_kwargs={"progress": "complete_no_more"}
+                    )
+                )
                 break
             
             all_results.extend(batch_results)
@@ -226,49 +272,109 @@ async def scroll_export_works(
             
             # Check if we have all available results
             if not batch_result.get("has_more", False):
+                progress_messages.append(
+                    ToolMessage(
+                        content=f"✅ Retrieved all available results: {len(all_results)} papers",
+                        tool_call_id=tool_call_id,
+                        additional_kwargs={"progress": "complete_all"}
+                    )
+                )
                 break
             
             # Small delay to respect rate limits
             await asyncio.sleep(0.1)
         
-        # Write results to file
-        output_path = Path("output") / filename
-        output_path.parent.mkdir(exist_ok=True)
+        if not all_results:
+            progress_messages.append(
+                ToolMessage(
+                    content="❌ No results found for the given query and criteria.",
+                    tool_call_id=tool_call_id,
+                    additional_kwargs={"error": True, "reason": "no_results"}
+                )
+            )
+            return Command(update={"messages": progress_messages})
         
+        # Prepare file content
         if output_format == "csv":
-            await _write_csv_file(output_path, all_results)
+            file_content = await _generate_csv_content(all_results)
         elif output_format == "json":
-            await _write_json_file(output_path, all_results)
+            file_content = await _generate_json_content(all_results)
         elif output_format == "md":
-            await _write_markdown_file(output_path, all_results, query)
+            file_content = await _generate_markdown_content(all_results, query)
+        else:
+            progress_messages.append(
+                ToolMessage(
+                    content=f"❌ Unsupported output format: {output_format}",
+                    tool_call_id=tool_call_id,
+                    additional_kwargs={"error": True, "reason": "invalid_format"}
+                )
+            )
+            return Command(update={"messages": progress_messages})
         
-        return {
-            "success": True,
-            "query": query,
-            "total_exported": len(all_results),
-            "output_file": str(output_path),
-            "output_format": output_format,
-            "file_size": output_path.stat().st_size if output_path.exists() else 0,
-            "summary": {
-                "unique_authors": len(set(r["authors"] for r in all_results if r["authors"] != "Unknown")),
-                "year_range": _get_year_range(all_results),
-                "with_full_text": sum(1 for r in all_results if r["full_text_available"]),
-                "with_doi": sum(1 for r in all_results if r["doi"])
-            }
+        # Update state with the file
+        files = state.get("files", {})
+        files[filename] = file_content
+        
+        # Create summary
+        summary = {
+            "unique_authors": len(set(r.get("authors", "Unknown") for r in all_results if r.get("authors") != "Unknown")),
+            "year_range": _get_year_range(all_results),
+            "with_full_text": sum(1 for r in all_results if r.get("full_text_available", False)),
+            "with_doi": sum(1 for r in all_results if r.get("doi"))
         }
+        
+        # Final success message
+        success_message = f"✅ Successfully exported {len(all_results)} results to {filename}\n\n📊 Summary:\n" + \
+                         f"• Unique authors: {summary['unique_authors']}\n" + \
+                         f"• Year range: {summary['year_range']}\n" + \
+                         f"• With full text: {summary['with_full_text']}\n" + \
+                         f"• With DOI: {summary['with_doi']}\n\n" + \
+                         f"📁 File: {filename} ({len(file_content):,} characters)"
+        
+        progress_messages.append(
+            ToolMessage(
+                content=success_message,
+                tool_call_id=tool_call_id,
+                additional_kwargs={
+                    "success": True,
+                    "filename": filename,
+                    "total_exported": len(all_results),
+                    "summary": summary
+                }
+            )
+        )
+        
+        return Command(
+            update={
+                "files": files,
+                "messages": progress_messages
+            }
+        )
         
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "query": query,
-            "total_exported": 0
-        }
+        error_message = f"❌ Fatal error during export: {str(e)}"
+        return Command(
+            update={
+                "messages": [
+                    ToolMessage(
+                        content=error_message,
+                        tool_call_id=tool_call_id,
+                        additional_kwargs={
+                            "error": True,
+                            "exception": str(e),
+                            "query": query
+                        }
+                    )
+                ]
+            }
+        )
 
-async def _write_csv_file(file_path: Path, results: List[Dict[str, Any]]) -> None:
-    """Write results to CSV file"""
+async def _generate_csv_content(results: List[Dict[str, Any]]) -> str:
+    """Generate CSV content as string"""
     if not results:
-        return
+        return ""
+    
+    import io
     
     fieldnames = [
         "core_id", "title", "authors", "year", "doi", "abstract",
@@ -276,47 +382,61 @@ async def _write_csv_file(file_path: Path, results: List[Dict[str, Any]]) -> Non
         "field_of_study", "citation_count", "download_url"
     ]
     
-    with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        
-        for result in results:
-            # Ensure all fields are present
-            row = {field: result.get(field, "") for field in fieldnames}
-            writer.writerow(row)
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    
+    for result in results:
+        # Ensure all fields are present
+        row = {field: result.get(field, "") for field in fieldnames}
+        writer.writerow(row)
+    
+    return output.getvalue()
 
-async def _write_json_file(file_path: Path, results: List[Dict[str, Any]]) -> None:
-    """Write results to JSON file"""
-    with open(file_path, 'w', encoding='utf-8') as jsonfile:
-        json.dump({
-            "exported_at": str(asyncio.get_event_loop().time()),
-            "total_results": len(results),
-            "results": results
-        }, jsonfile, indent=2, ensure_ascii=False)
+async def _generate_json_content(results: List[Dict[str, Any]]) -> str:
+    """Generate JSON content as string"""
+    import datetime
+    
+    data = {
+        "exported_at": datetime.datetime.now().isoformat(),
+        "total_results": len(results),
+        "results": results
+    }
+    
+    return json.dumps(data, indent=2, ensure_ascii=False)
 
-async def _write_markdown_file(file_path: Path, results: List[Dict[str, Any]], query: str) -> None:
-    """Write results to Markdown file"""
-    with open(file_path, 'w', encoding='utf-8') as mdfile:
-        mdfile.write(f"# CORE API Export Results\n\n")
-        mdfile.write(f"**Query:** {query}\n\n")
-        mdfile.write(f"**Total Results:** {len(results)}\n\n")
-        mdfile.write(f"**Exported:** {asyncio.get_event_loop().time()}\n\n")
+async def _generate_markdown_content(results: List[Dict[str, Any]], query: str) -> str:
+    """Generate Markdown content as string"""
+    import datetime
+    
+    content = f"# CORE API Export Results\n\n"
+    content += f"**Query:** {query}\n\n"
+    content += f"**Total Results:** {len(results)}\n\n"
+    content += f"**Exported:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    content += "---\n\n"
+    
+    for i, result in enumerate(results, 1):
+        content += f"## {i}. {result.get('title', 'Untitled')}\n\n"
         
-        mdfile.write("## Results\n\n")
+        if result.get('authors'):
+            content += f"**Authors:** {result['authors']}\n\n"
         
-        for i, result in enumerate(results, 1):
-            mdfile.write(f"### {i}. {result.get('title', 'Untitled')}\n\n")
-            mdfile.write(f"**Authors:** {result.get('authors', 'Unknown')}\n\n")
-            mdfile.write(f"**Year:** {result.get('year', 'Unknown')}\n\n")
-            
-            if result.get('doi'):
-                mdfile.write(f"**DOI:** {result['doi']}\n\n")
-            
-            if result.get('abstract'):
-                mdfile.write(f"**Abstract:** {result['abstract']}\n\n")
-            
-            mdfile.write(f"**Full Text Available:** {'Yes' if result.get('full_text_available') else 'No'}\n\n")
-            mdfile.write("---\n\n")
+        if result.get('year'):
+            content += f"**Year:** {result['year']}\n\n"
+        
+        if result.get('doi'):
+            content += f"**DOI:** {result['doi']}\n\n"
+        
+        if result.get('abstract'):
+            abstract = result['abstract'][:500] + "..." if len(result['abstract']) > 500 else result['abstract']
+            content += f"**Abstract:** {abstract}\n\n"
+        
+        if result.get('full_text_available'):
+            content += "**Full Text:** Available\n\n"
+        
+        content += "---\n\n"
+    
+    return content
 
 def _get_year_range(results: List[Dict[str, Any]]) -> Dict[str, Optional[int]]:
     """Get year range from results"""

@@ -18,6 +18,9 @@
   height: 60px;
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-surface);
+  position: relative;
+  z-index: 1000;
+  flex-shrink: 0;
 }
 
 .title {

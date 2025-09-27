@@ -4,10 +4,11 @@ Planning Coordinator Subagent - DeepAgents v1.1 Implementation
 Creates and refines structured research plans for literature reviews.
 Requires human approval before execution following the human-in-the-loop workflow.
 Uses Grok-4-Fast model for planning and coordination.
+
+The subagent handles all planning logic internally without needing separate tools.
 """
 
 from src.deepagents.sub_agent import SubAgent
-from langchain_core.tools import tool
 from typing import Dict, Any, List
 import json
 from datetime import datetime, timedelta
@@ -17,8 +18,8 @@ from config.prompts import PLANNING_COORDINATOR_PROMPT
 from models import get_default_model
 
 
-@tool
-def create_research_plan(
+# Helper functions for the subagent (not exposed as tools)
+def _create_research_plan(
     research_question: str,
     scope: str = "",
     methodology: str = "systematic_review",
@@ -68,8 +69,7 @@ def create_research_plan(
         }
 
 
-@tool
-def refine_research_plan(
+def _refine_research_plan(
     existing_plan: Dict[str, Any],
     user_feedback: str,
     modifications: Dict[str, Any] = None
@@ -117,8 +117,7 @@ def refine_research_plan(
         }
 
 
-@tool
-def generate_search_keywords(
+def _generate_search_keywords(
     research_question: str,
     domain: str = "",
     include_synonyms: bool = True
@@ -460,12 +459,8 @@ def create_planning_coordinator():
     
     return {
         "name": "planning_coordinator",
-        "description": "Creates and refines structured research plans with human approval workflow",
+        "description": "Creates and refines structured research plans with human approval workflow. Handles all planning logic internally including PICO formulation, search strategy, inclusion/exclusion criteria, and timeline development.",
         "prompt": PLANNING_COORDINATOR_PROMPT,
-        "tools": [
-            "create_research_plan",
-            "refine_research_plan",
-            "generate_search_keywords",
-        ],
+        # No external tools needed - subagent handles planning logic internally
         "model": model
     }

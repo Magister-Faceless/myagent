@@ -7,7 +7,6 @@ Uses Grok-4-Fast model for fast validation and reasoning.
 """
 
 from src.deepagents.sub_agent import SubAgent
-from langchain_core.tools import tool
 from typing import Dict, Any, List
 import json
 from datetime import datetime
@@ -17,8 +16,8 @@ from config.prompts import REQUEST_VALIDATOR_PROMPT
 from models import get_default_model
 
 
-@tool
-def validate_literature_review_request(
+# Helper functions for the subagent (not exposed as tools)
+def _validate_literature_review_request(
     user_request: str,
     context: str = ""
 ) -> Dict[str, Any]:
@@ -126,8 +125,7 @@ def validate_literature_review_request(
         }
 
 
-@tool
-def assess_research_feasibility(
+def _assess_research_feasibility(
     research_topic: str,
     time_constraints: str = "",
     resource_constraints: str = ""
@@ -210,11 +208,8 @@ def create_request_validator():
     
     return {
         "name": "request_validator",
-        "description": "Validates literature review requests and assesses feasibility",
+        "description": "Validates literature review requests and assesses feasibility. Handles validation logic internally including appropriateness assessment, scope analysis, and feasibility evaluation.",
         "prompt": REQUEST_VALIDATOR_PROMPT,
-        "tools": [
-            "validate_literature_review_request",
-            "assess_research_feasibility",
-        ],
+        # No external tools needed - subagent handles validation logic internally
         "model": model
     }

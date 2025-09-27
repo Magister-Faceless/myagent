@@ -29,32 +29,18 @@ from tools.literature.quality_assessment import quality_assessment
 # Import enhanced subagent creators following refined plan
 from subagents.request_validator import (
     create_request_validator,
-    validate_literature_review_request,
-    assess_research_feasibility,
 )
 from subagents.planning_coordinator import (
     create_planning_coordinator,
-    create_research_plan,
-    refine_research_plan,
-    generate_search_keywords,
 )
 from subagents.literature_screener import (
     create_literature_screener,
-    screen_papers,
-    generate_prisma_data,
 )
 from subagents.content_analyzer import (
     create_content_analyzer,
-    analyze_full_paper,
-    extract_visual_data,
-    create_paper_summary,
 )
 from subagents.synthesis_engine import (
     create_synthesis_engine,
-    identify_themes,
-    assess_evidence_strength,
-    identify_research_gaps,
-    generate_synthesis_report,
 )
 
 # Import utility tools
@@ -114,21 +100,8 @@ def create_literature_review_agent():
                 export_citations,
                 quality_assessment,
 
-                # Subagent-specific tools
-                validate_literature_review_request,
-                assess_research_feasibility,
-                create_research_plan,
-                refine_research_plan,
-                generate_search_keywords,
-                screen_papers,
-                generate_prisma_data,
-                analyze_full_paper,
-                extract_visual_data,
-                create_paper_summary,
-                identify_themes,
-                assess_evidence_strength,
-                identify_research_gaps,
-                generate_synthesis_report,
+                # Note: Subagent-specific tools are handled via the task tool and subagents
+                # Individual tools removed to prevent conflicts with subagent calls
 
                 # Utility tools for task and subagent management
                 get_active_subagents,
@@ -147,10 +120,14 @@ def create_literature_review_agent():
             instructions=LITERATURE_REVIEW_AGENT_INSTRUCTIONS,
             model=model,
             checkpointer=checkpointer,
-            # Enable human approval for critical research operations
+            # Human-in-the-loop at Planning Coordinator level as per design document
             interrupt_config={
-                "planning_coordinator": True,  # Require approval for research plans
-                "synthesis_engine": True,      # Require approval for final synthesis
+                "planning_coordinator": {
+                    "allow_ignore": False,
+                    "allow_respond": True,
+                    "allow_edit": True,
+                    "allow_accept": True,
+                }
             }
         ).with_config({"recursion_limit": settings["recursion_limit"]})
     

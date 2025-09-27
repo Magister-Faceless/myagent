@@ -6,7 +6,6 @@ Perplexity Sonar Deep Research model for multi-step synthesis and citations.
 """
 
 from src.deepagents.sub_agent import SubAgent
-from langchain_core.tools import tool
 from typing import Dict, List, Any, Optional
 import json
 from datetime import datetime
@@ -17,8 +16,7 @@ from config.prompts import SYNTHESIS_ENGINE_PROMPT
 from models.models import ModelFactory
 
 
-@tool
-def identify_themes(
+def _identify_themes(
     extracted_data: List[Dict[str, Any]],
     research_question: str
 ) -> Dict[str, Any]:
@@ -90,8 +88,7 @@ def identify_themes(
         }
 
 
-@tool
-def assess_evidence_strength(
+def _assess_evidence_strength(
     themes: List[Dict[str, Any]],
     quality_criteria: List[str] = None
 ) -> Dict[str, Any]:
@@ -162,8 +159,7 @@ def assess_evidence_strength(
         }
 
 
-@tool
-def identify_research_gaps(
+def _identify_research_gaps(
     themes: List[Dict[str, Any]],
     extracted_data: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
@@ -251,8 +247,7 @@ def identify_research_gaps(
         }
 
 
-@tool
-def generate_synthesis_report(
+def _generate_synthesis_report(
     research_question: str,
     themes: List[Dict[str, Any]],
     evidence_assessments: List[Dict[str, Any]],
@@ -469,13 +464,11 @@ def create_synthesis_engine():
     
     return {
         "name": "synthesis_engine",
-        "description": "Advanced evidence synthesis using Perplexity Sonar Deep Research for multi-step analysis and comprehensive reporting",
+        "description": (
+            "Advanced evidence synthesis and reporting using Perplexity Sonar Deep Research. "
+            "Handles theme identification, evidence grading, gap analysis, and report generation internally."
+        ),
         "prompt": SYNTHESIS_ENGINE_PROMPT,
-        "tools": [
-            "identify_themes",
-            "assess_evidence_strength",
-            "identify_research_gaps",
-            "generate_synthesis_report",
-        ],
-        "model": sonar_model  # Use Perplexity Sonar Deep Research
+        # No external tools needed - subagent manages synthesis workflow internally
+        "model": sonar_model,
     }

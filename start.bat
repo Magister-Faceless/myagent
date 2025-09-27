@@ -26,7 +26,7 @@ if not exist "%FRONTEND_PATH%" (
 
 REM Start backend server
 echo 🔧 Starting Backend Server...
-start "MyAgents Backend" cmd /k "cd /d "%BACKEND_PATH%" && .\.venv\Scripts\activate && echo 🚀 Backend Server Starting... && echo API: http://127.0.0.1:2024 && langgraph dev"
+start "MyAgents Backend" cmd /k "cd /d "%BACKEND_PATH%" && .\.venv\Scripts\activate && echo 🚀 Backend Server Starting... && echo API: http://127.0.0.1:2024 && langgraph dev --no-browser"
 
 REM Wait a moment for backend to initialize
 timeout /t 3 /nobreak >nul
@@ -44,7 +44,7 @@ echo.
 echo 📍 Server URLs:
 echo    Backend API: http://127.0.0.1:2024
 echo    Frontend UI: http://localhost:3000
-echo    LangGraph Studio: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
+echo    LangGraph Studio (optional): https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
 echo.
 echo 💡 Tips:
 echo    - Both servers are running in separate command prompt windows

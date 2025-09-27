@@ -28,6 +28,7 @@ from tools.core_api import (
 
 # Import utility tools
 from tools.subagent_tracker import get_active_subagents, get_subagent_summary
+from tools.operation_monitor import check_operation_status, suggest_alternatives
 
 # Import subagent creators
 from subagents.general_agent import create_general_subagent
@@ -104,6 +105,9 @@ def create_main_agent():
                 # Utility tools for task and subagent management
                 get_active_subagents,
                 get_subagent_summary,
+                # Operation monitoring and error handling tools
+                check_operation_status,
+                suggest_alternatives,
             ],
             instructions=MAIN_AGENT_INSTRUCTIONS,
             subagents=[

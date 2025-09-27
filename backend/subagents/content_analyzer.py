@@ -6,7 +6,6 @@ and vision capabilities for images, tables, and figures.
 """
 
 from src.deepagents.sub_agent import SubAgent
-from langchain_core.tools import tool
 from typing import Dict, Any, List
 import json
 from datetime import datetime
@@ -15,8 +14,7 @@ from config.prompts import CONTENT_ANALYZER_PROMPT
 from models import get_default_model
 
 
-@tool
-def analyze_full_paper(
+def _analyze_full_paper(
     paper_content: str,
     paper_metadata: Dict[str, Any],
     analysis_focus: List[str] = None
@@ -62,8 +60,7 @@ def analyze_full_paper(
         }
 
 
-@tool
-def extract_visual_data(
+def _extract_visual_data(
     image_descriptions: List[str],
     table_data: List[str],
     figure_captions: List[str]
@@ -98,8 +95,7 @@ def extract_visual_data(
         }
 
 
-@tool
-def create_paper_summary(
+def _create_paper_summary(
     paper_analysis: Dict[str, Any],
     summary_type: str = "comprehensive"
 ) -> Dict[str, Any]:
@@ -357,12 +353,10 @@ def create_content_analyzer():
     
     return {
         "name": "content_analyzer",
-        "description": "Comprehensive paper analysis using Grok-4-Fast vision and 2M token context",
+        "description": (
+            "Comprehensive content analysis of papers including methodology, findings, visual elements, and summaries. "
+            "Handles full-text and multimodal analysis workflows internally using Grok-4-Fast's large context window."
+        ),
         "prompt": CONTENT_ANALYZER_PROMPT,
-        "tools": [
-            "analyze_full_paper",
-            "extract_visual_data",
-            "create_paper_summary",
-        ],
-        "model": model
+        "model": model,  # Use Grok-4-Fast for large context window
     }

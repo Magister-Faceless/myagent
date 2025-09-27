@@ -42,7 +42,7 @@ function Start-Backend {
     }
     
     # Create backend command
-    $BackendCommand = "cd '$BackendPath'; .\.venv\Scripts\Activate.ps1; Write-Host 'Backend Server Starting...' -ForegroundColor Green; Write-Host 'API: http://127.0.0.1:2024' -ForegroundColor Cyan; langgraph dev"
+    $BackendCommand = "cd '$BackendPath'; .\.venv\Scripts\Activate.ps1; Write-Host 'Backend Server Starting...' -ForegroundColor Green; Write-Host 'API: http://127.0.0.1:2024' -ForegroundColor Cyan; langgraph dev --no-browser"
     
     # Start backend in a new PowerShell window
     Start-Process powershell -ArgumentList @("-NoExit", "-Command", $BackendCommand)
@@ -156,7 +156,7 @@ try {
     Write-Host "Server URLs:" -ForegroundColor Cyan
     Write-Host "   Backend API: http://127.0.0.1:2024" -ForegroundColor White
     Write-Host "   Frontend UI: http://localhost:3000" -ForegroundColor White
-    Write-Host "   LangGraph Studio: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024" -ForegroundColor White
+    Write-Host "   LangGraph Studio (optional): https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024" -ForegroundColor White
     Write-Host ""
     Write-Host "Tips:" -ForegroundColor Yellow
     Write-Host "   - Both servers are running in separate windows" -ForegroundColor White

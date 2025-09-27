@@ -38,7 +38,7 @@ class ModelFactory:
     
     # Default model configurations
     DEFAULT_MODELS = {
-        # Primary chat models (with fallback hierarchy)
+        # Primary chat models (with fallback hierarchy) - Using more reliable models
         "primary": ModelConfig(
             name="x-ai/grok-4-fast",
             provider=ModelProvider.OPENROUTER,
@@ -47,14 +47,14 @@ class ModelFactory:
             api_key_env_var="OPENROUTER_API_KEY"
         ),
         "fallback-1": ModelConfig(
-            name="google/gemini-2.5-flash-preview-09-2025",
+            name="anthropic/claude-3.5-sonnet",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
             api_key_env_var="OPENROUTER_API_KEY"
         ),
         "fallback-2": ModelConfig(
-            name="qwen/qwen3-vl-235b-a22b-thinking",
+            name="x-ai/grok-4-fast",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
@@ -63,14 +63,14 @@ class ModelFactory:
         
         # Vision models
         "vision-primary": ModelConfig(
-            name="x-ai/grok-4-fast",
+            name="google/gemini-2.5-flash-preview-09-2025",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
             api_key_env_var="OPENROUTER_API_KEY"
         ),
         "vision-fallback": ModelConfig(
-            name="google/gemini-2.5-flash-preview-09-2025",
+            name="anthropic/claude-3.5-sonnet",
             provider=ModelProvider.OPENROUTER,
             temperature=0.1,
             base_url="https://openrouter.ai/api/v1",
@@ -229,8 +229,8 @@ def get_default_model() -> BaseChatModel:
     """
     Get the default chat model with automatic fallback.
     
-    Uses the primary model (alibaba/tongyi-deepresearch-30b-a3b) with automatic
-    fallback to qwen/qwen-plus-2025-07-28 and then x-ai/grok-4-fast:free.
+    Uses the primary model (google/gemini-2.5-flash-preview-09-2025) with automatic
+    fallback to anthropic/claude-3.5-sonnet and then x-ai/grok-4-fast.
     All models use OpenRouter as the provider.
     
     Returns:
