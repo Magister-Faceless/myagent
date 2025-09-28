@@ -42,6 +42,9 @@ from subagents.content_analyzer import (
 from subagents.synthesis_engine import (
     create_synthesis_engine,
 )
+from subagents.work_reviewer import (
+    create_work_reviewer,
+)
 
 # Import utility tools
 from tools.subagent_tracker import get_active_subagents, get_subagent_summary
@@ -73,6 +76,7 @@ def create_literature_review_agent():
     literature_screener = create_literature_screener()
     content_analyzer = create_content_analyzer()
     synthesis_engine = create_synthesis_engine()
+    work_reviewer = create_work_reviewer()
     
     # Get the default model (Grok-4-Fast) for main coordination
     model = get_default_model()
@@ -116,6 +120,9 @@ def create_literature_review_agent():
                 
                 # Deep research and synthesis (Perplexity Sonar)
                 synthesis_engine,
+                
+                # Quality assurance and verification
+                work_reviewer,
             ],
             instructions=LITERATURE_REVIEW_AGENT_INSTRUCTIONS,
             model=model,

@@ -164,6 +164,7 @@ def create_literature_screener():
         "name": "literature_screener",
         "description": (
             "PRISMA-compliant screening with Grok-4-Fast vision analysis for images, tables, and figures. "
+            "Responsible for creating prisma_diagram.md. "
             "Handles screening workflows internally including PRISMA data generation and statistics."
         ),
         "prompt": LITERATURE_SCREENER_PROMPT,

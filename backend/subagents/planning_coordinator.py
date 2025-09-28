@@ -459,7 +459,7 @@ def create_planning_coordinator():
     
     return {
         "name": "planning_coordinator",
-        "description": "Creates and refines structured research plans with human approval workflow. Handles all planning logic internally including PICO formulation, search strategy, inclusion/exclusion criteria, and timeline development.",
+        "description": "Creates and refines structured research plans with human approval workflow. Responsible for creating methodology.md. Handles all planning logic internally including PICO formulation, search strategy, inclusion/exclusion criteria, and timeline development.",
         "prompt": PLANNING_COORDINATOR_PROMPT,
         # No external tools needed - subagent handles planning logic internally
         "model": model

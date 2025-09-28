@@ -466,6 +466,7 @@ def create_synthesis_engine():
         "name": "synthesis_engine",
         "description": (
             "Advanced evidence synthesis and reporting using Perplexity Sonar Deep Research. "
+            "Responsible for creating final_report.md and bibliography.bib. "
             "Handles theme identification, evidence grading, gap analysis, and report generation internally."
         ),
         "prompt": SYNTHESIS_ENGINE_PROMPT,

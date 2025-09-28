@@ -433,3 +433,91 @@ FINAL OUTPUT:
 - Comprehensive structured report generation
 
 This two-model approach optimizes for both speed (Grok-4-Fast) and depth (Perplexity Sonar), ensuring efficient workflow while maintaining research quality.
+
+# Version 1.2.0 - File Output Contracts & Workflow Updates
+
+## File Output Contracts
+
+### Core Deliverables
+Each subagent is responsible for specific file outputs:
+
+1. **Planning Coordinator** → `methodology.md`
+   - Search strategy documentation
+   - Inclusion/exclusion criteria
+   - PRISMA protocol
+
+2. **Literature Screener** → `prisma_diagram.md`
+   - PRISMA flow diagram
+   - Screening statistics
+   - Study selection details
+
+3. **Content Analyzer** → `evidence_summary.md`
+   - Quality assessment tables
+   - Risk of bias evaluation
+   - Evidence strength grading
+
+4. **Synthesis Engine** → `final_report.md` & `bibliography.bib`
+   - Complete systematic review
+   - Formatted citations
+   - Reference list
+
+5. **Work Reviewer** → `work_review_report.md`
+   - Deliverable verification
+   - Quality assessment
+   - Issue tracking
+
+## Workflow Enhancements
+
+### New Work Reviewer Subagent
+- Automatically verifies all deliverables
+- Validates file formats and content
+- Ensures cross-references are consistent
+- Generates quality assurance report
+
+### File Management
+- Uses built-in tools: `ls`, `read_file`, `write_file`
+- Maintains clear file ownership
+- Enforces consistent naming conventions
+- Preserves intermediate files for reproducibility
+
+### Quality Assurance
+- Automated checks for required files
+- Content validation against PRISMA guidelines
+- Citation integrity verification
+- Report generation with actionable feedback
+
+## File Structure
+
+```
+literature_review/
+├── core/                    # Main deliverables
+│   ├── final_report.md
+│   ├── prisma_diagram.md
+│   ├── bibliography.bib
+│   ├── evidence_summary.md
+│   └── methodology.md
+├── screening/              # Screening artifacts
+│   ├── included_studies.md
+│   ├── excluded_studies.md
+│   └── screening_log.md
+├── analysis/               # Analysis artifacts
+│   ├── paper_001.md
+│   ├── paper_002.md
+│   └── themes/
+│       ├── theme_methods.md
+│       └── theme_results.md
+├── quality/                # Quality assurance
+│   ├── work_review_report.md
+│   └── issues_tracking.md
+└── working/                # Working files
+    ├── drafts/
+    └── notes/
+```
+
+## Changes from v1.1
+- Added explicit file output contracts
+- Introduced work reviewer for quality assurance
+- Standardized file naming and organization
+- Improved documentation of intermediate files
+- Enhanced error handling for file operations
+

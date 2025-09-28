@@ -355,6 +355,7 @@ def create_content_analyzer():
         "name": "content_analyzer",
         "description": (
             "Comprehensive content analysis of papers including methodology, findings, visual elements, and summaries. "
+            "Responsible for creating evidence_summary.md. "
             "Handles full-text and multimodal analysis workflows internally using Grok-4-Fast's large context window."
         ),
         "prompt": CONTENT_ANALYZER_PROMPT,
