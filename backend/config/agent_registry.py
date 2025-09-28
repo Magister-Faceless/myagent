@@ -26,6 +26,7 @@ class AgentType(Enum):
     MEDICAL_RESEARCH = "medical_research"
     PYTHON_CODING = "python_coding"
     LITERATURE_REVIEW = "literature_review"
+    ENHANCED_GENERAL = "enhanced_general"
 
 
 @dataclass

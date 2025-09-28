@@ -70,6 +70,21 @@ class AgentFactory:
             # Utility tools
             ("get_active_subagents", "tools.subagent_tracker", "get_active_subagents"),
             ("get_subagent_summary", "tools.subagent_tracker", "get_subagent_summary"),
+            
+            # Memory Enhanced Tools
+            ("enhanced_write_file", "tools.memory_enhanced_tools", "enhanced_write_file"),
+            ("enhanced_read_file", "tools.memory_enhanced_tools", "enhanced_read_file"),
+            ("intelligent_file_search", "tools.memory_enhanced_tools", "intelligent_file_search"),
+            ("get_thread_memory_context", "tools.memory_enhanced_tools", "get_thread_memory_context"),
+            ("get_shared_context_summary", "tools.memory_enhanced_tools", "get_shared_context_summary"),
+            ("list_thread_files", "tools.memory_enhanced_tools", "list_thread_files"),
+            ("update_file_content", "tools.memory_enhanced_tools", "update_file_content"),
+            
+            # Literature Review Tools
+            ("extract_paper_metadata", "tools.literature.extract_paper_metadata", "extract_paper_metadata"),
+            ("generate_prisma_diagram", "tools.literature.generate_prisma_diagram", "generate_prisma_diagram"),
+            ("export_citations", "tools.literature.export_citations", "export_citations"),
+            ("quality_assessment", "tools.literature.quality_assessment", "quality_assessment"),
         ]
         
         for tool_name, module_path, function_name in tools_to_import:
@@ -93,6 +108,13 @@ class AgentFactory:
             ("deep_research_subagent", "subagents.deep_research_agent", "create_deep_research_agent"),
             ("market_analysis_subagent", "subagents.market_analysis_agent", "create_market_analysis_agent"),
             ("technical_research_subagent", "subagents.technical_research_agent", "create_technical_research_agent"),
+            
+            # Literature Review Subagents
+            ("request_validator", "subagents.request_validator", "create_request_validator"),
+            ("planning_coordinator", "subagents.planning_coordinator", "create_planning_coordinator"),
+            ("literature_screener", "subagents.literature_screener", "create_literature_screener"),
+            ("content_analyzer", "subagents.content_analyzer", "create_content_analyzer"),
+            ("synthesis_engine", "subagents.synthesis_engine", "create_synthesis_engine"),
         ]
         
         for subagent_name, module_path, function_name in subagents_to_import:
@@ -264,32 +286,47 @@ class AgentFactory:
             # Get application settings
             settings = get_settings()
             
-            # Resolve tools
-            tool_names = config.tools or self._get_default_tools_for_type(config.agent_type)
-            tools = []
-            missing_tools = []
-            for tool_name in tool_names:
-                if tool_name in self._tool_registry:
-                    tools.append(self._tool_registry[tool_name])
-                else:
-                    missing_tools.append(tool_name)
-            
-            if missing_tools:
-                print(f"Warning: Agent '{agent_id}' missing tools: {missing_tools}")
-                print(f"Available tools: {list(self._tool_registry.keys())}")
-            
-            # Resolve subagents
+            # Resolve subagents first so their tool requirements can be included
             subagent_names = config.subagents or self._get_default_subagents_for_type(config.agent_type)
             subagents = []
+            subagent_required_tools: set[str] = set()
             for subagent_name in subagent_names:
                 if subagent_name in self._subagent_registry:
                     try:
                         subagent = self._subagent_registry[subagent_name]()
                         subagents.append(subagent)
+
+                        # Collect tool requirements from the subagent specification
+                        required_tools = []
+                        if hasattr(subagent, "tools"):
+                            required_tools = getattr(subagent, "tools") or []
+                        elif isinstance(subagent, dict):
+                            required_tools = subagent.get("tools", []) or []
+
+                        if required_tools:
+                            # Some SubAgent implementations use tuples; normalize to list
+                            if not isinstance(required_tools, (list, tuple, set)):
+                                required_tools = [required_tools]
+                            subagent_required_tools.update(required_tools)
                     except Exception as e:
                         print(f"Warning: Failed to create subagent '{subagent_name}': {e}")
                 else:
                     print(f"Warning: Subagent '{subagent_name}' not found for agent '{agent_id}'")
+
+            # Resolve tools, augmenting with any subagent requirements
+            explicit_tools = config.tools if config.tools else self._get_default_tools_for_type(config.agent_type)
+            combined_tool_names = list(dict.fromkeys(list(explicit_tools) + list(subagent_required_tools)))
+            tools = []
+            missing_tools = []
+            for tool_name in combined_tool_names:
+                if tool_name in self._tool_registry:
+                    tools.append(self._tool_registry[tool_name])
+                else:
+                    missing_tools.append(tool_name)
+
+            if missing_tools:
+                print(f"Warning: Agent '{agent_id}' missing tools: {missing_tools}")
+                print(f"Available tools: {list(self._tool_registry.keys())}")
             
             # Get instructions
             instructions = config.instructions or self._get_default_instructions_for_type(config.agent_type)

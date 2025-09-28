@@ -115,6 +115,46 @@
       "updated_at": null
     },
     {
+      "id": "enhanced-main-agent",
+      "name": "Enhanced Main Agent",
+      "description": "Memory-enhanced general purpose AI agent with intelligent context management and cross-agent collaboration",
+      "agent_type": "enhanced_general",
+      "color": "#7C3AED",
+      "icon": "🧠✨",
+      "instructions": "You are an enhanced general-purpose AI agent with advanced memory capabilities, intelligent context management, and cross-agent collaboration features.",
+      "tools": [
+        "enhanced_write_file",
+        "enhanced_read_file",
+        "intelligent_file_search",
+        "get_thread_memory_context",
+        "get_shared_context_summary",
+        "list_thread_files",
+        "update_file_content"
+      ],
+      "subagents": [
+        "general_subagent",
+        "reasoning_subagent",
+        "deep_research_subagent",
+        "market_analysis_subagent",
+        "technical_research_subagent"
+      ],
+      "model_config": null,
+      "recursion_limit": 100,
+      "interrupt_config": {
+        "sonar_deep_research": {
+          "allow_ignore": false,
+          "allow_respond": true,
+          "allow_edit": true,
+          "allow_accept": true
+        }
+      },
+      "builtin_tools": null,
+      "main_agent_tools": null,
+      "enabled": true,
+      "created_at": null,
+      "updated_at": null
+    },
+    {
       "id": "literature-review",
       "name": "Literature Review Agent",
       "description": "Systematic literature review coordinator with human-in-the-loop safeguards",

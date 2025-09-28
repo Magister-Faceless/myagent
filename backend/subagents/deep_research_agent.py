@@ -71,12 +71,7 @@ OUTPUT:
 ⚠️  REQUIRES HUMAN APPROVAL: Due to high resource usage and cost""",
         prompt=SONAR_DEEP_RESEARCH_PROMPT,
         tools=[
-            "sonar_deep_research",
-            "write_file",
-            "read_file", 
-            "edit_file",
-            "ls",
-            "write_todos"
+            "sonar_deep_research"
         ],
         model=get_perplexity_model()  # Use the configured Perplexity sonar-deep-research model
     )
