@@ -7,38 +7,25 @@ from typing import Literal, Any
 from src.deepagents import create_deep_agent
 from src.deepagents.sub_agent import SubAgent
 
-# Import tools from the tools module
-from tools.search.tavily_search import tavily_search, tavily_qna_search
-from tools.search.perplexity import perplexity_reasoning_search, perplexity_focused_research
-from tools.search.perplexity_strategies import academic_search, technical_search, market_research, deep_research
-from tools.search.sonar_deep_research import sonar_deep_research
+# Import essential tools only - lean approach for generalist agent
+from tools.search.tavily_search import tavily_search  # Basic web search capability
 
-# Import CORE API tools
-from tools.core_api import (
-    search_works, 
-    scroll_export_works,
-    get_work_by_id, 
-    batch_get_works_by_ids,
-    aggregate_works, 
-    time_trend_analysis,
-    search_journals, 
-    get_journal_by_id,
-    analyze_top_venues_for_topic
+# Import memory-enhanced tools for file management
+from tools.memory_enhanced_tools import (
+    enhanced_write_file,
+    enhanced_read_file,
+    intelligent_file_search,
+    get_thread_memory_context,
+    get_shared_context_summary,
 )
 
-# Import utility tools
+# Import essential utility tools
 from tools.subagent_tracker import get_active_subagents, get_subagent_summary
-from tools.operation_monitor import check_operation_status, suggest_alternatives
 
-# Import subagent creators
+# Import core subagent creators - lean approach
+from subagents.planning_coordinator import create_planning_coordinator
 from subagents.general_agent import create_general_subagent
-from subagents.reasoning_agent import create_reasoning_subagent
-from subagents.deep_research_agent import create_deep_research_agent
-from subagents.market_analysis_agent import create_market_analysis_agent
-from subagents.technical_research_agent import create_technical_research_agent
-
-# Import CORE API research subagents
-from subagents.core_research_subagents import get_all_core_research_subagents
+from subagents.qa_reviewer import create_qa_reviewer
 
 # Import configuration
 from config.prompts import MAIN_AGENT_INSTRUCTIONS
@@ -55,19 +42,19 @@ from utils.subagent_tracking import enable_subagent_tracking
 
 
 def create_main_agent():
-    """Create and configure the main deep agent."""
+    """Create and configure the lean generalist main agent.
+    
+    This agent is designed to be a generalist that can handle most tasks directly,
+    but can dynamically spawn specialized subagents when complex domain-specific
+    work is required. It uses minimal tools to avoid context window bloat.
+    """
     # Get application settings
     settings = get_settings()
     
-    # Create subagents
+    # Create essential subagents only
     general_subagent = create_general_subagent()
-    reasoning_subagent = create_reasoning_subagent()
-    deep_research_subagent = create_deep_research_agent()
-    market_analysis_subagent = create_market_analysis_agent()
-    technical_research_subagent = create_technical_research_agent()
-    
-    # Get all CORE API research subagents
-    core_research_subagents = get_all_core_research_subagents()
+    planning_coordinator = create_planning_coordinator()
+    qa_reviewer = create_qa_reviewer()
     
     # Get the default model with fallback
     model = get_default_model()
@@ -75,54 +62,33 @@ def create_main_agent():
     # Get persistent checkpointer for state storage
     checkpointer = get_default_checkpointer()
     
-    # Create the main deep agent with human-in-the-loop for high-cost operations
+    # Create the lean main deep agent with adaptive specialization capability
     with enable_subagent_tracking():
         agent = create_deep_agent(
             tools=[
-                # General search tools
+                # Essential search capability
                 tavily_search,
-                tavily_qna_search,
-                # Perplexity reasoning tools
-                perplexity_reasoning_search,
-                perplexity_focused_research,
-                # Specialized research strategy tools
-                academic_search,
-                technical_search,
-                market_research,
-                deep_research,
-                # Elite sonar deep research tool
-                sonar_deep_research,
-                # CORE API tools for scientific research
-                search_works,
-                scroll_export_works,
-                get_work_by_id,
-                batch_get_works_by_ids,
-                aggregate_works,
-                time_trend_analysis,
-                search_journals,
-                get_journal_by_id,
-                analyze_top_venues_for_topic,
-                # Utility tools for task and subagent management
+                # Memory-enhanced file management (essential for all tasks)
+                enhanced_write_file,
+                enhanced_read_file,
+                intelligent_file_search,
+                get_thread_memory_context,
+                get_shared_context_summary,
+                # Subagent management tools
                 get_active_subagents,
                 get_subagent_summary,
-                # Operation monitoring and error handling tools
-                check_operation_status,
-                suggest_alternatives,
             ],
             instructions=MAIN_AGENT_INSTRUCTIONS,
             subagents=[
-                general_subagent,
-                reasoning_subagent,
-                deep_research_subagent,
-                market_analysis_subagent,
-                technical_research_subagent,
-            ]
-            + core_research_subagents,
+                planning_coordinator,  # Enhanced for specialization decisions
+                general_subagent,      # For general task delegation
+                qa_reviewer,           # For quality assurance
+            ],
             model=model,
             checkpointer=checkpointer,
-            # Configure human-in-the-loop for task spawning when using sonar-deep-research agent
+            # Configure human-in-the-loop for specialization decisions
             interrupt_config={
-                "sonar_deep_research": {
+                "task": {  # Interrupt when spawning specialized subagents
                     "allow_ignore": False,
                     "allow_respond": True,
                     "allow_edit": True,

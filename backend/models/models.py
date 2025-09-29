@@ -244,7 +244,22 @@ def get_default_model() -> BaseChatModel:
             "OPENROUTER_API_KEY not found. Please set the OPENROUTER_API_KEY environment variable."
         )
     
-    return ModelFactory._get_model_with_fallback()
+    # Build primary model with runtime fallbacks so transient errors (e.g., 429 rate limits)
+    # automatically trigger backups without failing the entire run.
+    primary_model = ModelFactory.get_model("primary")
+    fallback_models = []
+
+    for fallback_key in ["fallback-1", "fallback-2"]:
+        try:
+            fallback_models.append(ModelFactory.get_model(fallback_key))
+        except Exception as exc:  # noqa: BLE001 - log and continue building fallbacks
+            print(f"Failed to initialize fallback model '{fallback_key}': {exc}")
+            continue
+
+    if fallback_models:
+        return primary_model.with_fallbacks(fallback_models)
+
+    return primary_model
 
 
 def get_vision_model() -> BaseChatModel:
