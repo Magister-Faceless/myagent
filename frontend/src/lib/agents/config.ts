@@ -1,7 +1,7 @@
 import type { Agent } from "@/app/types/types";
 
 // Default agents configuration
-// You can modify this list to add/remove agents as needed
+// Matches ALL agents defined in backend/langgraph.json
 export const AVAILABLE_AGENTS: Agent[] = [
   {
     id: "main-agent",
@@ -32,10 +32,30 @@ export const AVAILABLE_AGENTS: Agent[] = [
     icon: "✍️",
   },
   {
+    id: "medical-literature-agent",
+    name: "Medical Literature Agent",
+    description: "Specialized agent for medical literature search, filtering, review, and analysis",
+    color: "#DC2626",
+    icon: "🏥",
+  },
+  {
+    id: "python-coding-agent",
+    name: "Python Coding Assistant",
+    description: "Specialized Python development assistant for coding, debugging, and best practices",
+    color: "#3776AB",
+    icon: "🐍",
+  },
+  {
+    id: "enhanced-main-agent",
+    name: "Enhanced Main Agent",
+    description: "Memory-enhanced general purpose AI agent with intelligent context management",
+    color: "#7C3AED",
+    icon: "🧠✨",
+  },
+  {
     id: "literature-review",
     name: "Literature Review Agent",
-    description:
-      "Systematic literature review assistant with planning, screening, and synthesis subagents",
+    description: "Systematic literature review coordinator with human-in-the-loop workflow and citation verification",
     color: "#6366F1",
     icon: "📚",
   },

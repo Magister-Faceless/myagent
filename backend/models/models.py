@@ -27,7 +27,7 @@ class ModelConfig:
     temperature: float = 0.1
     max_tokens: Optional[int] = None
     timeout: int = 30
-    max_retries: int = 2
+    max_retries: int = 5
     base_url: Optional[str] = None
     api_key_env_var: Optional[str] = None
     additional_params: Optional[Dict[str, Any]] = None

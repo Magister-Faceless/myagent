@@ -1,14 +1,32 @@
 """
 Main agent implementation using the deep agents framework.
+
+Architecture:
+- Main agent: Uses essential tools directly (search, memory tools)
+- Subagents: CustomSubAgent graphs with their own specific tools
+- Minimizes context window usage while maintaining flexibility
 """
 
 import os
 from typing import Literal, Any
 from src.deepagents import create_deep_agent
-from src.deepagents.sub_agent import SubAgent
+from langgraph.prebuilt import create_react_agent
 
-# Import essential tools only - lean approach for generalist agent
-from tools.search.tavily_search import tavily_search  # Basic web search capability
+# Import essential tools for main agent
+from tools.search.tavily_search import tavily_search, tavily_qna_search
+from tools.search.perplexity import perplexity_reasoning_search, perplexity_focused_research
+from tools.search.sonar_deep_research import sonar_deep_research
+
+# Import tools for specialized subagents
+from tools.core_api import (
+    search_works, scroll_export_works, get_work_by_id, batch_get_works_by_ids,
+    aggregate_works, time_trend_analysis, search_journals, get_journal_by_id,
+    analyze_top_venues_for_topic,
+)
+from tools.literature.extract_paper_metadata import extract_paper_metadata
+from tools.literature.generate_prisma_diagram import generate_prisma_diagram
+from tools.literature.export_citations import export_citations
+from tools.literature.quality_assessment import quality_assessment
 
 # Import memory-enhanced tools for file management
 from tools.memory_enhanced_tools import (
@@ -22,67 +40,107 @@ from tools.memory_enhanced_tools import (
 # Import essential utility tools
 from tools.subagent_tracker import get_active_subagents, get_subagent_summary
 
-# Import core subagent creators - lean approach
-from subagents.planning_coordinator import create_planning_coordinator
-from subagents.general_agent import create_general_subagent
-from subagents.qa_reviewer import create_qa_reviewer
-
 # Import configuration
-from config.prompts import MAIN_AGENT_INSTRUCTIONS
+from config.prompts import (
+    MAIN_AGENT_INSTRUCTIONS,
+    PLANNING_COORDINATOR_PROMPT,
+    GENERAL_SUBAGENT_PROMPT,
+    QA_REVIEWER_PROMPT,
+)
 from config.settings import get_settings
-
-# Import model configuration
 from models import get_default_model
-
-# Import checkpointer configuration
 from config.checkpointer import get_default_checkpointer
-
-# Utilities
 from utils.subagent_tracking import enable_subagent_tracking
 
 
 def create_main_agent():
-    """Create and configure the lean generalist main agent.
+    """Create and configure the lean generalist main agent with CustomSubAgent pattern.
     
-    This agent is designed to be a generalist that can handle most tasks directly,
-    but can dynamically spawn specialized subagents when complex domain-specific
-    work is required. It uses minimal tools to avoid context window bloat.
+    Architecture:
+    - Main agent: Essential tools only (search, memory, tracking)
+    - Subagents: Independent graphs with specific tool sets
+    - Minimizes main agent's context window usage
     """
-    # Get application settings
     settings = get_settings()
-    
-    # Create essential subagents only
-    general_subagent = create_general_subagent()
-    planning_coordinator = create_planning_coordinator()
-    qa_reviewer = create_qa_reviewer()
-    
-    # Get the default model with fallback
     model = get_default_model()
-    
-    # Get persistent checkpointer for state storage
     checkpointer = get_default_checkpointer()
     
-    # Create the lean main deep agent with adaptive specialization capability
+    # Create CustomSubAgent: Planning coordinator (no external tools)
+    planning_coordinator_graph = create_react_agent(
+        model=model,
+        tools=[],  # Only uses built-in tools
+        prompt=PLANNING_COORDINATOR_PROMPT,
+        checkpointer=checkpointer,
+    )
+    
+    # Create CustomSubAgent: General specialist with ALL tools
+    general_subagent_graph = create_react_agent(
+        model=model,
+        tools=[
+            # Search tools
+            tavily_search, tavily_qna_search, perplexity_reasoning_search,
+            perplexity_focused_research, sonar_deep_research,
+            # CORE API tools
+            search_works, scroll_export_works, get_work_by_id, batch_get_works_by_ids,
+            aggregate_works, time_trend_analysis, search_journals, get_journal_by_id,
+            analyze_top_venues_for_topic,
+            # Literature tools
+            extract_paper_metadata, generate_prisma_diagram, export_citations, quality_assessment,
+            # Memory tools
+            enhanced_write_file, enhanced_read_file, intelligent_file_search,
+            get_thread_memory_context, get_shared_context_summary,
+        ],
+        prompt=GENERAL_SUBAGENT_PROMPT,
+        checkpointer=checkpointer,
+    )
+    
+    # Create CustomSubAgent: QA reviewer with memory tools
+    qa_reviewer_graph = create_react_agent(
+        model=model,
+        tools=[
+            get_thread_memory_context,
+            get_shared_context_summary,
+        ],
+        prompt=QA_REVIEWER_PROMPT,
+        checkpointer=checkpointer,
+    )
+    
+    # Create main agent with essential tools only
     with enable_subagent_tracking():
         agent = create_deep_agent(
             tools=[
-                # Essential search capability
+                # Essential search tools (main agent uses these directly)
                 tavily_search,
+                perplexity_reasoning_search,
+                
                 # Memory-enhanced file management (essential for all tasks)
                 enhanced_write_file,
                 enhanced_read_file,
                 intelligent_file_search,
                 get_thread_memory_context,
                 get_shared_context_summary,
+                
                 # Subagent management tools
                 get_active_subagents,
                 get_subagent_summary,
             ],
             instructions=MAIN_AGENT_INSTRUCTIONS,
             subagents=[
-                planning_coordinator,  # Enhanced for specialization decisions
-                general_subagent,      # For general task delegation
-                qa_reviewer,           # For quality assurance
+                {
+                    "name": "planning_coordinator",
+                    "description": "Enhanced planning coordinator for task assessment and specialization planning.",
+                    "graph": planning_coordinator_graph,
+                },
+                {
+                    "name": "specialist-agent",
+                    "description": "General-purpose specialist with access to ALL tools for flexible task delegation.",
+                    "graph": general_subagent_graph,
+                },
+                {
+                    "name": "qa_reviewer",
+                    "description": "Quality assurance reviewer for completion verification before final delivery.",
+                    "graph": qa_reviewer_graph,
+                },
             ],
             model=model,
             checkpointer=checkpointer,

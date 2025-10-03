@@ -3,14 +3,14 @@
     "."
   ],
   "graphs": {
-    "main-agent": "agents.dynamic_agents:main_agent",
+    "main-agent": "agents.main_agent:agent",
     "research-agent": "agents.dynamic_agents:research_agent",
     "code-assistant": "agents.dynamic_agents:code_assistant",
     "content-creator": "agents.dynamic_agents:content_creator",
     "medical-literature-agent": "agents.dynamic_agents:medical_literature_agent",
     "python-coding-agent": "agents.dynamic_agents:python_coding_agent",
     "enhanced-main-agent": "agents.dynamic_agents:enhanced_main_agent",
-    "literature-review": "agents.dynamic_agents:literature_review"
+    "literature-review": "agents.literature_review:agent"
   },
   "env": ".env"
 }
